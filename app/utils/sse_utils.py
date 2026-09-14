@@ -90,8 +90,8 @@ async def sse_generator(session_id: str, request: Request):
             
             # print(f"[SSE] Yielding event {event} for {session_id}")
 
-            # 特殊关闭事件
-            if event == "__close__":
+            # 特殊关闭事件（业务链路结束时由服务端主动下发）
+            if event == SSEEvent.CLOSE:
                 logger.debug(f"[SSE] 收到关闭信号: {session_id}")
                 break
 

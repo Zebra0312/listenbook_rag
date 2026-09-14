@@ -6,7 +6,13 @@ from app.core.logger import logger, node_log, step_log
 from app.lm.lm_utils import get_llm_client
 from app.query_process.agent.state import QueryGraphState
 from app.utils.sse_utils import push_to_session, SSEEvent
-from app.utils.task_utils import add_running_task, add_done_task, set_task_result
+from app.utils.task_utils import (
+    add_running_task,
+    add_done_task,
+    set_task_result,
+    get_done_task_list,
+    TASK_STATUS_COMPLETED,
+)
 
 # 上下文最大字符数
 MAX_CONTEXT_CHARS = 12000
@@ -342,6 +348,10 @@ def node_answer_output(state: QueryGraphState):
             )
         state["answer"] = cleaned
         step_4_write_history(state, image_urls=image_urls)
+    # 记录当前任务的状态为已完成
+    # 注意：必须先于 final 事件推送。前端收到 final 后会立即关闭 SSE 连接，
+    # 之后再推的 progress 无人接收，进度条会残留“⏳ 生成答案 / 状态：处理中”
+    add_done_task(state["session_id"], "node_answer_output", state["is_stream"])
     # 将图片和最终answer推送到浏览器端
     if state.get("is_stream"):
         push_to_session(
@@ -349,9 +359,12 @@ def node_answer_output(state: QueryGraphState):
             SSEEvent.FINAL,
             {
                 "answer": state["answer"],
-                "image_urls": image_urls  # 发送图片URL给前端
+                "image_urls": image_urls,  # 发送图片URL给前端
+                # 随最终答案一并下发进度快照：前端 close 连接后收不到后续 progress，
+                # 靠它渲染出“全部已完成”的收尾状态
+                "status": TASK_STATUS_COMPLETED,
+                "done_list": get_done_task_list(state["session_id"]),
+                "running_list": [],
             }
         )
-    # 记录当前任务的状态为已完成
-    add_done_task(state["session_id"], "node_answer_output", state["is_stream"])
     return state

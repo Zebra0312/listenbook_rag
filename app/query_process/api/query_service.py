@@ -77,6 +77,12 @@ def run_query_graph(session_id: str, user_query: str, is_stream: bool = True):
         # 判断是否是流式调用
         if is_stream:
             push_to_session(session_id, SSEEvent.ERROR, {"error": str(e)})
+    finally:
+        # 链路已经结束，主动通知 SSE 生成器关闭连接。
+        # 否则服务端会一直等客户端先断开：浏览器刷新/关页时会自行断开，
+        # 但用 curl 等非浏览器客户端调试时，连接会一直挂着直到超时。
+        if is_stream:
+            push_to_session(session_id, SSEEvent.CLOSE, {})
 
 # 处理用户的问题
 @app.post("/query")

@@ -285,7 +285,7 @@
         <div class="avatar bot">听书智库</div>
         <div>
           <div class="bubble">你好，我是听书智库的书籍知识助手。可以问我书籍推荐、书籍详情、内容检索与听书笔记，我会在“阶段进度”里展示处理过程。</div>
-          <div class="meta">提示：可以问“如何使用万用表测量电压？”</div>
+          <div class="meta">提示：你了解刘慈欣的《三体》吗?”</div>
         </div>
       </div>
     </div>
@@ -607,6 +607,7 @@
 
     function renderProgress(botMsgEl, doneList, runningList, status){
       const details = botMsgEl.querySelector('details.progress');
+      if(!details) return;
       const summary = details.querySelector('summary');
       const ul = details.querySelector('ul');
       const done = Array.isArray(doneList) ? doneList : [];
@@ -786,10 +787,14 @@
         const es = new EventSource(`${API_BASE}/stream/${session_id}`);
         console.log('[perf] C EventSource created', performance.now(), { session_id });
         let rawAnswerText = '';
+        // 缓存最近一次进度快照：收到 final 后连接即关闭，后端后续的 progress 送不到，
+        // 需要用它在 final 时把仍标为“进行中”的节点补成“已完成”
+        let lastProgress = { done_list: [], running_list: [] };
 
         es.addEventListener('progress', (e) => {
           try{
             const d = JSON.parse(e.data || '{}');
+            lastProgress = { done_list: d.done_list || [], running_list: d.running_list || [] };
             renderProgress(botMsgEl, d.done_list, d.running_list, d.status);
             // 当进度状态已完成时，提前结束“...”等待态
             if(d && d.status === 'completed'){
@@ -823,6 +828,12 @@
           
           try{
             const d = JSON.parse(e.data || '{}');
+            // 收尾进度：final 之后连接会关闭，后端后续的 progress 送不到，
+            // 需把仍标为“进行中”的节点补成“已完成”，否则会残留“⏳ 生成答案 / 状态：处理中”
+            const doneList = (Array.isArray(d.done_list) && d.done_list.length > 0)
+              ? d.done_list
+              : [...lastProgress.done_list, ...lastProgress.running_list];
+            renderProgress(botMsgEl, doneList, [], d.status || 'completed');
             // 流式 delta 可能不包含“【图片】/图片列表”，最终包的 d.answer 才是完整答案；优先使用 d.answer
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
@@ -840,6 +851,11 @@
           
           try{
             const d = JSON.parse(e.data || '{}');
+            // 与 final 分支同样做进度收尾，避免残留“进行中”
+            const doneList = (Array.isArray(d.done_list) && d.done_list.length > 0)
+              ? d.done_list
+              : [...lastProgress.done_list, ...lastProgress.running_list];
+            renderProgress(botMsgEl, doneList, [], d.status || 'completed');
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
           }catch(_){}
@@ -850,6 +866,10 @@
         es.addEventListener('error', (e) => {
           const typing = botMsgEl.querySelector('.typing');
           if(typing) typing.remove();
+          // 失败时把状态标为失败；未完成的节点保留展示，便于定位卡在哪一步
+          try{
+            renderProgress(botMsgEl, lastProgress.done_list, lastProgress.running_list, 'failed');
+          }catch(_){}
           // 收起进度条
           const progress = botMsgEl.querySelector('details.progress');
           if(progress) progress.removeAttribute('open');

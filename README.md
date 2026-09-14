@@ -389,7 +389,7 @@ print("最终答案：", result["answer"])
 | 方法     | 路径                    | 说明                                                         |
 | -------- | ----------------------- | ------------------------------------------------------------ |
 | `POST`   | `/query`                | 发起问答；`is_stream=true` 返回 `session_id`（走后台任务 + SSE），否则同步返回完整答案 |
-| `GET`    | `/stream/{session_id}`  | 建立 SSE 长连接，接收 `ready` / `progress` / `delta` / `final` / `error` 事件 |
+| `GET`    | `/stream/{session_id}`  | 建立 SSE 长连接，接收 `ready` / `progress` / `delta` / `final` / `error` 事件；链路结束后由服务端主动关闭 |
 | `GET`    | `/history/{session_id}` | 查询该会话的历史对话记录                                     |
 | `DELETE` | `/history/{session_id}` | 清空该会话历史                                               |
 | `GET`    | `/health`               | 健康检查                                                     |
@@ -559,6 +559,10 @@ uv run python test/05_query_test.py        # 问答
 3. **LLM 生成** — 流式调用大模型，逐 token 通过 SSE `delta` 事件推送；
 4. **图片提取与白名单校验** — 先从参考切片提取真实图片 URL 作为白名单，再清洗答案（Markdown 图片整段删除、正文游离图片 URL 删除、`【图片】` 区块只保留白名单内地址，全部不合法则连区块标题一起删除）；
 5. **保存历史** — 以 `assistant` 角色写入 MongoDB（含 `item_names` 与 `image_urls`）；
-6. **SSE 结束事件** — 推送 `final`，携带清洗后的答案与 `image_urls` 供前端渲染。
+6. **SSE 结束事件** — 先 `add_done_task` 把本节点移入"已完成"，再推送 `final`，携带清洗后的答案、`image_urls`，以及**进度快照** `status` / `done_list` / `running_list`（供前端直接渲染收尾状态）。
 
 > **前端约定**：流式 `delta` 阶段只渲染文字，图片统一在 `final` 事件渲染，避免编造地址"闪一下又消失"。
+>
+> **收尾时序（易踩坑）**：前端收到 `final` 后会**立即关闭 SSE 连接**，此后后端再推的 `progress` 一律收不到。因此凡是"把节点标记为已完成"的进度推送（`add_done_task`、`update_task_status(COMPLETED)`）都必须排在 `final` **之前**，否则进度条会残留"⏳ 生成答案 / 状态：处理中"。前端另有一层兜底：缓存最后一次进度快照，在 `final` / `error` 时补齐收尾状态。
+>
+> **连接收尾**：后台任务结束后，服务端推送 `__close__`（`SSEEvent.CLOSE`）主动关闭 SSE 流；否则非浏览器客户端（如 `curl -N`）会一直挂着直到超时。
