@@ -32,11 +32,13 @@ _NODE_NAME_TO_CN: Dict[str, str] = {
     "node_item_name_recognition": "书籍主体识别",
     "node_document_split": "文档切分",
     "node_bge_embedding": "向量生成",
+    "node_mp3_to_text": "音频转文本",
     "node_import_kg": "导入知识图谱",
     "node_import_milvus": "导入向量库",
     "__end__": "处理完成",
     "END": "处理完成",
     # --- Query 流程节点 ---
+    "node_query_intent": "识别输入意图",
     "node_item_name_confirm": "确认书籍主体",
     "node_answer_output": "生成答案",
     "node_rerank": "重排序",
