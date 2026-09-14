@@ -64,13 +64,18 @@ def run_transcribe(audio_path: str) -> bool:
 
 
 def pick_test_file(arg_path):
-    """选择测试音频：优先用命令行传入的，其次用 output/ 下的示例"""
+    """选择测试音频：优先用命令行传入的，其次在 mp3/ 下自动查找"""
     if arg_path and os.path.exists(arg_path):
         return arg_path
-    for name in ("test_santi.mp3", "示例音频.mp3", "sample.mp3"):
-        p = PROJECT_ROOT_DIR / "output" / name
-        if p.exists():
-            return str(p)
+    # 未指定时，在 mp3/query/、mp3/import/、output/ 下找第一个音频文件
+    for d in (PROJECT_ROOT_DIR / "mp3" / "query",
+              PROJECT_ROOT_DIR / "mp3" / "import",
+              PROJECT_ROOT_DIR / "output"):
+        if not d.exists():
+            continue
+        for f in sorted(d.iterdir()):
+            if f.suffix.lower() in (".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg"):
+                return str(f)
     return None
 
 
