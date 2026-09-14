@@ -29,6 +29,10 @@ dependencies = [
     "transformers>=4.57.6",
     "datasets>=4.8.4",
     "requests>=2.32.5",
+    # mcp 必须锁在 1.x：mcp 2.x 的客户端会用新的 server/discover 握手（protocolVersion
+    # 2026-07-28），百炼 BaiLianMcpServer 只认 2024-11-05，会直接返回 HTTP 500，
+    # 导致 node_web_search_mcp 连不上（1.30.0 实测正常）。
+    "mcp<2",
 ]
 
 [tool.uv]

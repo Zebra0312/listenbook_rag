@@ -1,5 +1,7 @@
+import asyncio
 import shutil
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import List
 
@@ -11,11 +13,23 @@ from starlette.responses import FileResponse
 from app.core.logger import logger
 from app.import_process.agent.main_graph import kb_import_app
 from app.import_process.agent.state import create_default_state
+from app.utils.asyncio_utils import install_asyncio_noise_filter
 from app.utils.path_util import PROJECT_ROOT
 from app.utils.task_utils import update_task_status, TASK_STATUS_PROCESSING, add_done_task, TASK_STATUS_COMPLETED, \
     TASK_STATUS_FAILED, add_running_task, get_task_status, get_running_task_list, get_done_task_list
 
-app = FastAPI(title="import service", description="听书智库内容导入服务！")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    启动时安装 asyncio 噪音过滤器：客户端中途断开连接时，
+    Windows 的 Proactor transport 会抛 WinError 10054 噪音（对业务无影响），这里降级为 DEBUG。
+    """
+    install_asyncio_noise_filter(asyncio.get_running_loop())
+    yield
+
+
+app = FastAPI(title="import service", description="听书智库内容导入服务！", lifespan=lifespan)
 
 # 解决跨域问题
 app.add_middleware(

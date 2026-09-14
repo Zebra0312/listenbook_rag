@@ -82,7 +82,7 @@ listenbook_rag 用 RAG 的思路解决这个问题——**先检索、再生成*
 | 文档数据库  | MongoDB（历史对话记录管理）                                  |
 | 对象存储    | MinIO（原始文档 + 图片）                                     |
 | 文档解析    | MinerU 在线 API（PDF → Markdown，保留表格 / 公式 / 图片）     |
-| 网络搜索    | 百炼 WebSearch（MCP 协议调用，失败自动降级）                  |
+| 网络搜索    | 百炼 WebSearch（MCP 协议调用，需 `mcp<2`；失败自动降级）      |
 | 前端        | 原生 HTML + JavaScript + EventSource（SSE 流式接收）         |
 | 日志        | loguru                                                       |
 
@@ -369,7 +369,7 @@ print("最终答案：", result["answer"])
 | BGE-M3      | 必需            | `BGE_M3_PATH` `BGE_DEVICE` `BGE_FP16`                        | 本地模型路径或在线兜底 |
 | Reranker    | 检索模块必需    | `BGE_RERANKER_LARGE` `BGE_RERANKER_DEVICE` `BGE_RERANKER_FP16` | 本地 Cross-Encoder 精排模型 |
 | MinIO       | md 含图片时必需 | `MINIO_ENDPOINT` `MINIO_ACCESS_KEY` `MINIO_SECRET_KEY` `MINIO_BUCKET_NAME` `MINIO_IMG_DIR` `MINIO_SECURE` | 图片对象存储 |
-| 网络搜索    | 可选            | `MCP_DASHSCOPE_BASE_URL`                                     | 百炼 WebSearch（MCP），鉴权复用 `OPENAI_API_KEY` |
+| 网络搜索    | 可选            | `MCP_DASHSCOPE_BASE_URL`                                     | 百炼 WebSearch（MCP），鉴权复用 `OPENAI_API_KEY`；**依赖 `mcp<2`**（见[已知限制](#已知限制与路线图)） |
 | 日志        | 可选            | `LOG_CONSOLE_*` `LOG_FILE_*`                                 | 控制台 / 文件日志      |
 
 ## HTTP 接口
@@ -430,7 +430,8 @@ uv run python test/05_query_test.py        # 问答
 
 **已知限制**
 
-- **百炼 WebSearch MCP 端点连通性**：当前 `MCP_DASHSCOPE_BASE_URL` 指向 `.../WebSearch/mcp`，实测返回 HTTP 500；改用 `/sse` 传输也不匹配。该路召回失败会自动降级为"仅本地召回"，不影响问答，但会少一层时效性补充。需要以百炼控制台最新文档核对端点与开通情况。
+- **网络搜索依赖 `mcp<2`**：`mcp` 2.x 的客户端会先发 `server/discover`（protocolVersion `2026-07-28`），而百炼 `BaiLianMcpServer` 只认 `2024-11-05`，会直接返回 HTTP 500（表现为 `node_web_search_mcp` 报 `Failed to connect to MCP server`）。已在 `pyproject.toml` 锁定 **`mcp<2`**（实测 1.30.0 正常）；若某天升级依赖后网络搜索突然失效，先检查这里。该路失败时仍会自动降级为"仅本地召回"。
+- **Windows 断连噪音**：SSE 长连接被浏览器主动断开（刷新页面 / 关标签页）时，Proactor transport 会抛 `WinError 10054`，被 asyncio 默认处理器打成 `ERROR:asyncio` 堆栈。已在两个服务的 lifespan 中安装 `app/utils/asyncio_utils.py` 的过滤器降级为 DEBUG，并把 `sse_utils` 里断连后的刷屏输出也降为 DEBUG。
 - **端口与 RAG 模板冲突**：模板项目与本项目都用 8000（导入）/ 9091（检索），两者不能同时启动。
 - **主体名对齐**：切片库存的是"书名-作者"复合主体（如 `三体-刘慈欣`）；已用"按书名部分包含式对齐"兜底，但若同名书籍有多位作者/多版本，会全部命中（属预期，利于跨文件召回）。
 - **`category` 尚未填充**：类别/标签字段已建好但暂无来源，需要大模型或后台配置补齐。
@@ -537,6 +538,7 @@ uv run python test/05_query_test.py        # 问答
 2. 通过 `MCPServerStreamableHttp` 连接百炼 MCP，调用 `bailian_web_search`（count=5，最多重试 2 次）；
 3. 把返回 JSON 的 `pages` 整理为 `{title, url, snippet}`；
 4. **降级保护**：MCP 不可用/超时/异常时记告警并返回空列表，不影响本地两路召回。
+   > 注意：该节点依赖 `mcp<2`；`mcp` 2.x 会因 `server/discover` 握手不被百炼支持而报 HTTP 500。
 
 #### 5. node_rrf — RRF 融合
 

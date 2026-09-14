@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 import uuid
 import uvicorn
@@ -10,14 +12,29 @@ from app.clients.mongo_history_utils import get_recent_messages, clear_history
 from app.core.logger import logger
 from app.query_process.agent.state import create_query_default_state
 
+from app.utils.asyncio_utils import install_asyncio_noise_filter
 from app.utils.task_utils import *
 from app.utils.sse_utils import create_sse_queue, SSEEvent, sse_generator
 # from app.clients.mongo_history_utils import *
 from app.query_process.agent.main_graph import kb_query_app
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    启动时安装 asyncio 噪音过滤器。
+
+    背景：SSE 长连接被浏览器主动断开（刷新页面 / 关标签页）时，Windows 的 Proactor
+    transport 会抛 ConnectionResetError(WinError 10054)，asyncio 默认处理器会打印
+    `ERROR:asyncio:Exception in callback _ProactorBasePipeTransport._call_connection_lost` 堆栈。
+    这不是业务错误（SSE 通道自身已做断连清理），这里统一降级为 DEBUG 日志。
+    """
+    install_asyncio_noise_filter(asyncio.get_running_loop())
+    yield
+
+
 # 定义fastapi对象
-app = FastAPI(title="query service", description="听书智库检索问答服务！")
+app = FastAPI(title="query service", description="听书智库检索问答服务！", lifespan=lifespan)
 
 # 跨域配置
 app.add_middleware(
