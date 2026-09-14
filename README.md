@@ -370,6 +370,7 @@ print("最终答案：", result["answer"])
 | Reranker    | 检索模块必需    | `BGE_RERANKER_LARGE` `BGE_RERANKER_DEVICE` `BGE_RERANKER_FP16` | 本地 Cross-Encoder 精排模型 |
 | MinIO       | md 含图片时必需 | `MINIO_ENDPOINT` `MINIO_ACCESS_KEY` `MINIO_SECRET_KEY` `MINIO_BUCKET_NAME` `MINIO_IMG_DIR` `MINIO_SECURE` | 图片对象存储 |
 | 网络搜索    | 可选            | `MCP_DASHSCOPE_BASE_URL`                                     | 百炼 WebSearch（MCP），鉴权复用 `OPENAI_API_KEY`；**依赖 `mcp<2`**（见[已知限制](#已知限制与路线图)） |
+| 语音识别    | MP3 入口必需    | `SENSEVOICE_MODEL_PATH` `FSMN_VAD_MODEL_PATH` `ASR_DEVICE` `ASR_LANGUAGE` `ASR_BATCH_SIZE_S` `ASR_MAX_SINGLE_SEGMENT_MS` `ASR_MERGE_LENGTH_S` `ASR_DEBUG` | 本地 SenseVoice 音频转文本（MP3 导入 / 音频提问） |
 | 日志        | 可选            | `LOG_CONSOLE_*` `LOG_FILE_*`                                 | 控制台 / 文件日志      |
 
 ## HTTP 接口
@@ -407,6 +408,7 @@ print("最终答案：", result["answer"])
 | `test/03_milvus_test.py` | Milvus 连接、集合字段完整性、数据量 | Milvus 服务              |
 | `test/04_import_test.py` | 导入全链路：PDF/MD → chunks → Milvus | LLM + Milvus + `doc/` 测试文件 |
 | `test/05_query_test.py`  | 检索问答全链路：提问 → 检索 → 答案 | 已导入数据 + Mongo + 重排模型 |
+| `test/06_asr_test.py`    | 语音识别：MP3 音频 → 纯文本        | SenseVoice + VAD 模型 + ffmpeg  |
 
 ```bash
 cd listenbook_rag
@@ -414,6 +416,7 @@ uv run python test/01_llm_test.py          # 先体检
 uv run python test/03_milvus_test.py       # 看集合与数据量
 uv run python test/04_import_test.py       # 导入（会自动取 doc/ 下第一个文件）
 uv run python test/05_query_test.py        # 问答
+uv run python test/06_asr_test.py          # 语音识别（需先准备音频文件）
 ```
 
 补充说明：
@@ -421,6 +424,7 @@ uv run python test/05_query_test.py        # 问答
 - `04_import_test.py` 支持 `--dry-run`（只检查文件与路由，不调模型、不写库）；它会把源文件复制到
   `output/test_import/<文件名>/` 再导入（模拟前端上传流程），因此 `doc/` 不会被 `*_new.md` / `backup.json` 污染。
 - `05_query_test.py` 支持 `--dry-run`、`--session`，也可直接传问题：`uv run python test/05_query_test.py "《三体》适合谁听？"`。
+- `06_asr_test.py` 支持 `--dry-run`，也可直接传音频路径：`uv run python test/06_asr_test.py D:/path/音频.mp3`。
 - `test/samples/` 下有一份示例资料，`doc/` 为空时自动兜底，便于开箱即跑。
 - 每个节点文件（`app/**/nodes/*.py`）也自带 `if __name__ == "__main__"` 自测入口，可单独运行验证。
 
@@ -437,6 +441,7 @@ uv run python test/05_query_test.py        # 问答
 - **`category` 尚未填充**：类别/标签字段已建好但暂无来源，需要大模型或后台配置补齐。
 - `duration` 仅在 `content_type=audiobook_info` 时从正文正则提取，取不到则为空。
 - 导入与检索采用本地方案，模型缓存依赖本地路径或首次联网下载。
+- **音频仅支持 MP3 入口**：语音转写只识别 `.mp3`（SenseVoice 本身也支持 wav/m4a/flac，但入口暂未扩展）。
 - `clients/mongo_history_utils_new.py` 与 `mongo_history_utils.py` 内容重复，当前只用后者，属历史遗留。
 - 任务状态与 SSE 队列在进程内存中（单进程、重启即丢）；长任务走 FastAPI BackgroundTasks，无重试。
 - 接口无鉴权、CORS 为 `*`、MinIO 桶为公开读，仅适合内网 demo。
@@ -444,7 +449,7 @@ uv run python test/05_query_test.py        # 问答
 
 **路线图**
 
-- [x] 内容导入管线（七节点：PDF/MD → chunks → Milvus）
+- [x] 内容导入管线（八节点：PDF/MD/MP3 → chunks → Milvus）
 - [x] 检索问答管线（书籍主体确认 → 多路召回 → RRF → rerank → 答案生成）
 - [x] FastAPI 服务 + SSE 流式推送
 - [x] 前端页面（导入页 + 智能问答页）
@@ -453,7 +458,8 @@ uv run python test/05_query_test.py        # 问答
 - [ ] 增量更新：文档增量入库与版本管理
 - [ ] 权限控制与多租户支持
 - [ ] 个性化推荐、听书路径等听书能力
-- [ ] 语音检索：语音转文本 / 字幕 / 时间轴文本定位片段（返回书名、作者、起止时间、片段摘要）
+- [x] 语音转文本：MP3 音频导入与音频提问的语音识别（本地 SenseVoice）
+- [ ] 语音检索进阶：字幕 / 时间轴定位片段（返回书名、作者、起止时间、片段摘要）
 - [ ] 多模态检索：封面图片与内容联合检索
 
 ## 附录：节点分步说明
@@ -463,8 +469,8 @@ uv run python test/05_query_test.py        # 问答
 #### 1. node_entry — 入口节点
 
 1. 接收状态，获取 `local_file_path`（为空则告警并返回）；
-2. 判断文件类型：`.pdf` / `.md` / 其他不支持格式；
-3. 设置路由标记并记录路径：`is_pdf_read_enabled` / `is_md_read_enabled`，对应写入 `pdf_path` / `md_path`；
+2. 判断文件类型：`.pdf` / `.md` / `.mp3` / 其他不支持格式；
+3. 设置路由标记并记录路径：`is_pdf_read_enabled` / `is_md_read_enabled` / `is_mp3_read_enabled`，对应写入 `pdf_path` / `md_path` / `mp3_path`；
 4. 提取 `file_title`（文件名去后缀），作为后续识别的兜底。
 
 #### 2. node_pdf_to_md — PDF 转 Markdown
@@ -481,14 +487,20 @@ uv run python test/05_query_test.py        # 问答
 4. 先按 `{MINIO_IMG_DIR}/{stem}` 前缀删除旧图，再上传并替换为 `![摘要](MinIO URL)`；
 5. 另存 `原名_new.md`，更新 state。
 
-#### 4. node_document_split — 文档切分
+#### 4. node_mp3_to_text — MP3 音频转文本
+
+1. **路径校验** — 校验 `mp3_path` 存在、`local_dir`（为空回退 `output/`，不存在则创建）；
+2. **语音转写** — 调用 `app/lm/asr_utils.transcribe_audio`（本地 SenseVoice + FSMN-VAD 长音频切分），得到带标点纯文本；
+3. **落盘与写状态** — 转写文本写入 `md_content`、落盘为 `{file_title}.md` 并更新 `md_path`，随后直接进入 `node_document_split`（音频无图片，跳过 `node_md_img`，后续流程完全复用）。
+
+#### 5. node_document_split — 文档切分
 
 1. **清洗内容** — 取 `md_content` / `file_title`，统一换行符；
 2. **标题初切** — 按 Markdown 标题（1–6 级）切分，跳过代码块；无标题则整篇作为「无主题」；
 3. **递归二次切分** — `RecursiveCharacterTextSplitter`（`CHUNK_SIZE=600` / 重叠 `90`）；切出多片时标题追加序号后缀；
 4. **元数据注入与备份** — 注入 `title` / `parent_title` / `file_title` / `part`，写入 `chunks` 并备份为 `backup.json`。
 
-#### 5. node_item_name_recognition — 书籍主体识别
+#### 6. node_item_name_recognition — 书籍主体识别
 
 1. **取值** — 获取 `file_title`、`chunks`（为空抛异常）；
 2. **构建上下文** — 从第 1 条切片起拼「切片：n，标题：x，内容：y」，累计字符达 2500 即停止；
@@ -496,12 +508,12 @@ uv run python test/05_query_test.py        # 问答
 4. **元数据回填** — 为每个切片写入 `item_name` / `content_type` / `book_name` / `author` / `category` / `duration` / `source_file` / `source_path`；
 5. **写入主体库** — 生成主体向量，按 `item_name` 幂等写入 `listenbook_item_names`。
 
-#### 6. node_bge_embedding — 向量生成
+#### 7. node_bge_embedding — 向量生成
 
 1. 校验 `chunks` 非空；
 2. 每批 5 条，参与向量化的文本为「书名：{item_name}，内容：{content}」，BGE-M3 生成稠密 + 稀疏向量并回填 `dense_vector` / `sparse_vector`；某批失败则该批原样保留，不阻断流程。
 
-#### 7. node_import_milvus — 导入向量库
+#### 8. node_import_milvus — 导入向量库
 
 1. 校验 `chunks` 非空；
 2. 不存在则创建 `listenbook_chunks`（16 个字段，见[知识库内容模型](#知识库内容模型)；稠密 HNSW-COSINE、稀疏 SPARSE_INVERTED_INDEX-IP）；
@@ -509,6 +521,12 @@ uv run python test/05_query_test.py        # 问答
 4. 批量写入 Milvus，把返回的 `chunk_id` 回填到各切片。
 
 ### 检索问答模块
+
+**入口前置 · node_query_intent — 输入意图识别**
+
+1. 判断 `original_query` 是否为音频文件路径（后缀命中 `.mp3/.wav/.m4a/.flac/.aac/.ogg` 且文件确实存在）；
+2. 音频输入 → 调用 `app/lm/asr_utils.transcribe_audio` 转写为文本，覆盖 `original_query`；
+3. 文本输入 → 直接透传。随后进入 `node_item_name_confirm`，后续检索流程完全复用。
 
 #### 1. node_item_name_confirm — 书籍主体确认
 

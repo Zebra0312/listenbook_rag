@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph
 
 from app.query_process.agent.nodes.node_answer_output import node_answer_output
 from app.query_process.agent.nodes.node_item_name_confirm import node_item_name_confirm
+from app.query_process.agent.nodes.node_query_intent import node_query_intent
 from app.query_process.agent.nodes.node_rerank import node_rerank
 from app.query_process.agent.nodes.node_rrf import node_rrf
 from app.query_process.agent.nodes.node_search_embedding import node_search_embedding
@@ -13,6 +14,7 @@ from app.query_process.agent.state import QueryGraphState
 builder = StateGraph(QueryGraphState)
 
 # 添加节点
+builder.add_node(node_query_intent)
 builder.add_node(node_item_name_confirm)
 builder.add_node(node_search_embedding)
 builder.add_node(node_search_embedding_hyde)
@@ -32,8 +34,9 @@ def condition_fun(state: QueryGraphState):
 
 
 # 添加边
-# 设置初始节点
-builder.set_entry_point("node_item_name_confirm")
+# 设置初始节点（先做输入意图识别：音频提问则先转写为文本）
+builder.set_entry_point("node_query_intent")
+builder.add_edge("node_query_intent", "node_item_name_confirm")
 # 添加条件边
 builder.add_conditional_edges(
     "node_item_name_confirm",
