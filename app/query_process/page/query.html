@@ -233,6 +233,18 @@
       line-height:1.5;
     }
     textarea:focus{border-color:rgba(26,167,255,.6); box-shadow:0 0 0 3px rgba(26,167,255,.12)}
+    .audio-btn{
+      width:44px;
+      height:44px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      cursor:pointer;
+      font-size:18px;
+      background:#f7f9fc;
+      flex-shrink:0;
+    }
+    .audio-btn:hover{background:#eef2f7}
+    .audio-btn:disabled{opacity:.5;cursor:not-allowed}
     .send{
       width:88px;
       height:44px;
@@ -291,7 +303,9 @@
     </div>
 
     <div class="composer">
-      <textarea id="input" placeholder="请输入问题（Enter 发送，Shift+Enter 换行）"></textarea>
+      <button class="audio-btn" id="btnAudio" title="上传音频提问（MP3/WAV 等，自动转写）">🎤</button>
+      <input type="file" id="audioInput" accept=".mp3,.wav,.m4a,.flac,.aac,.ogg" style="display:none">
+      <textarea id="input" placeholder="请输入问题，或点 🎤 上传音频提问"></textarea>
       <button class="send" id="send">发送</button>
     </div>
     <div class="hint">快捷键：<span class="kbd">Enter</span> 发送，<span class="kbd">Shift</span>+<span class="kbd">Enter</span> 换行</div>
@@ -308,6 +322,8 @@
     const chatEl = document.getElementById('chat');
     const inputEl = document.getElementById('input');
     const sendBtn = document.getElementById('send');
+    const btnAudio = document.getElementById('btnAudio');
+    const audioInput = document.getElementById('audioInput');
     const apiPill = document.getElementById('apiPill');
     const btnClear = document.getElementById('btnClear');
     const streamToggle = document.getElementById('streamToggle');
@@ -894,6 +910,48 @@
         sendBtn.disabled = false;
       }
     }
+
+    async function onAudioUpload(file){
+      if(!file) return;
+      btnAudio.disabled = true;
+      sendBtn.disabled = true;
+      // 显示"正在转写"的临时气泡
+      const statusMsg = addBotMsgSkeleton();
+      const bubble = statusMsg.querySelector('.bubble');
+      const typing = statusMsg.querySelector('.typing');
+      if(typing) typing.remove();
+      bubble.textContent = '正在转写音频…';
+      scrollToBottom();
+      try{
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch(`${API_BASE}/query_audio`, { method:'POST', body:fd });
+        if(!res.ok){
+          const msg = await res.text();
+          throw new Error(msg || '音频转写失败');
+        }
+        const data = await res.json();
+        // 转写完成：移除临时气泡，把转写文本填入输入框，复用 onSend 走常规检索
+        statusMsg.remove();
+        inputEl.value = data.query || '';
+        if(!inputEl.value.trim()){
+          throw new Error('音频转写结果为空，请确认音频内容清晰可辨');
+        }
+        onSend();
+      }catch(e){
+        bubble.innerHTML = `音频转写失败：${escapeHtml(e.message || e)}`;
+        sendBtn.disabled = false;
+      }finally{
+        btnAudio.disabled = false;
+      }
+    }
+
+    btnAudio.addEventListener('click', () => audioInput.click());
+    audioInput.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if(f) onAudioUpload(f);
+      e.target.value = '';
+    });
 
     sendBtn.addEventListener('click', onSend);
     inputEl.addEventListener('keydown', (e) => {

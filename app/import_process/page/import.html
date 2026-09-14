@@ -49,6 +49,11 @@
             color: #3498db;
             margin-bottom: 10px;
         }
+        .upload-hint {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 6px;
+        }
         .file-input {
             display: none;
         }
@@ -153,12 +158,13 @@
 
 <div class="container">
     <h1>📚 听书智库 · 内容导入</h1>
-    <div class="subtitle">支持导入书籍简介 / 作者介绍 / 听书笔记 / 推荐运营资料 / 用户评论摘要 / 常见问答等内容（PDF、MD）</div>
+    <div class="subtitle">支持导入书籍简介 / 作者介绍 / 听书笔记 / 推荐运营资料 / 用户评论摘要 / 常见问答等内容（PDF、MD、MP3 音频）</div>
 
     <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">☁️</div>
-        <p>点击或拖拽文件到此处 (PDF/MD)</p>
-        <input type="file" id="fileInput" class="file-input" multiple accept=".pdf,.md">
+        <p>点击或拖拽文件到此处 (PDF / MD / MP3)</p>
+        <p class="upload-hint">MP3 音频会自动转写为文本后进入切分入库</p>
+        <input type="file" id="fileInput" class="file-input" multiple accept=".pdf,.md,.mp3">
     </div>
 
     <div id="fileList" class="file-list">

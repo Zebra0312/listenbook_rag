@@ -1,9 +1,10 @@
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
+import shutil
 import uuid
 import uvicorn
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -12,6 +13,7 @@ from app.clients.mongo_history_utils import get_recent_messages, clear_history
 from app.core.logger import logger
 from app.query_process.agent.state import create_query_default_state
 
+from app.utils.path_util import PROJECT_ROOT
 from app.utils.asyncio_utils import install_asyncio_noise_filter
 from app.utils.task_utils import *
 from app.utils.sse_utils import create_sse_queue, SSEEvent, sse_generator
@@ -114,6 +116,30 @@ async def query(background_tasks: BackgroundTasks, request: QueryRequest):
             "answer": answer,
             "done_list": []
         }
+
+# 音频提问：上传音频文件，后端转写为文本后返回给前端（前端再走常规 /query 检索）
+# 说明：定义为同步 def，FastAPI 会自动丢进线程池执行，避免转写阻塞事件循环。
+@app.post("/query_audio")
+def query_audio(file: UploadFile = File(...)):
+    # 校验扩展名，只接受音频格式
+    filename = file.filename or ""
+    if not filename.lower().endswith((".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg")):
+        raise HTTPException(status_code=400, detail="仅支持音频文件（mp3/wav/m4a/flac/aac/ogg）")
+    # 保存音频到临时目录（不进正式导入目录）
+    audio_dir = PROJECT_ROOT / "output" / "audio_query"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    suffix = Path(filename).suffix or ".mp3"
+    audio_path = audio_dir / f"{uuid.uuid4().hex}{suffix}"
+    with audio_path.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+    logger.info(f"收到音频提问：{filename} -> {audio_path}")
+
+    # 同步转写（SenseVoice，本地，短音频约秒级）
+    from app.lm.asr_utils import transcribe_audio
+    text = transcribe_audio(str(audio_path))
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="音频转写结果为空，请确认音频内容清晰可辨")
+    return {"query": text, "filename": filename}
 
 # 创建处理sse请求的路径处理函数
 @app.get("/stream/{session_id}")
