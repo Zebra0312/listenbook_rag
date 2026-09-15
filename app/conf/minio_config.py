@@ -11,6 +11,7 @@ load_dotenv()
 @dataclass
 class MinIOConfig:
     endpoint: str    # MinIO服务地址（含http/https和端口）
+    public_endpoint: str  # 浏览器访问图片/语音时用的地址（见下方说明）
     access_key: str  # MinIO访问密钥（对应MINIO_ACCESS_KEY）
     secret_key: str  # MinIO秘钥（对应MINIO_SECRET_KEY）
     bucket_name: str # MinIO默认存储桶名（知识库文件专用）
@@ -22,6 +23,11 @@ class MinIOConfig:
 # 实例化MinIO配置对象，自动从.env读取配置并绑定
 minio_config = MinIOConfig(
     endpoint=os.getenv("MINIO_ENDPOINT"),
+    # 对外（浏览器）访问地址：默认与 endpoint 相同。
+    # 当 MinIO 在虚拟机/内网、宿主机做了端口映射时才需要单独指定，
+    # 例如后端直连 192.168.10.124:9000，而局域网同事只能走 192.168.12.196:9000。
+    # 不配 MINIO_PUBLIC_ENDPOINT 时自动回落到 MINIO_ENDPOINT，行为不变。
+    public_endpoint=os.getenv("MINIO_PUBLIC_ENDPOINT") or os.getenv("MINIO_ENDPOINT"),
     access_key=os.getenv("MINIO_ACCESS_KEY"),
     secret_key=os.getenv("MINIO_SECRET_KEY"),
     bucket_name=os.getenv("MINIO_BUCKET_NAME"),

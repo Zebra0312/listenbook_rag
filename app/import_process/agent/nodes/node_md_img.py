@@ -160,7 +160,7 @@ def step_4_upload_images_replace(image_summaries, image_targets, md_content, ste
                 content_type="image/jpeg"
             )
             # 获取图片在minio中的地址（注意 bucket 与目录之间必须有 "/"）
-            image_urls[image_name] = f"http://{minio_config.endpoint}/{minio_config.bucket_name}/{img_dir}/{stem}/{image_name}"
+            image_urls[image_name] = f"http://{minio_config.public_endpoint}/{minio_config.bucket_name}/{img_dir}/{stem}/{image_name}"
         except Exception as e:
             logger.error(f"{image_name}上传失败,{e}")
     # 创建存储图片所对应的摘要信息和minio中url的变量

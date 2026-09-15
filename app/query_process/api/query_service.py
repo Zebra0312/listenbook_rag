@@ -1,4 +1,5 @@
 import asyncio
+import os
 import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -7,7 +8,7 @@ import shutil
 import uuid
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, UploadFile, File
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -69,6 +70,11 @@ def query_page():
     if not query_file_path.exists():
         raise HTTPException(status_code=404, detail="query.html页面不存在")
     return FileResponse(str(query_file_path))
+
+# 访问根路径直接跳转到检索页：局域网用户只需记住 http://<本机IP>:9091/
+@app.get("/")
+def index():
+    return RedirectResponse(url="/query.html")
 
 # 创建后台任务，通过图对象处理以后的问题query
 def run_query_graph(session_id: str, user_query: str, is_stream: bool = True, audio_url: str = "", audio_text: str = ""):
@@ -282,4 +288,8 @@ async def clear_chat_history(session_id: str):
 if __name__ == "__main__":
     # 说明：直接传入 app 对象而非 "模块:变量" 字符串，
     # 保证通过 `uv run python -m app.query_process.api.query_service` 也能正常启动。
-    uvicorn.run(app, host="127.0.0.1", port=9091)
+    #
+    # host 默认 0.0.0.0：监听所有网卡，局域网内其他机器才能访问检索页。
+    # 只想自己用、拒绝局域网访问时，设环境变量 QUERY_HOST=127.0.0.1 即可改回。
+    # 注意：导入服务(8000)仍固定 127.0.0.1，按业务逻辑不对外暴露。
+    uvicorn.run(app, host=os.getenv("QUERY_HOST", "0.0.0.0"), port=9091)

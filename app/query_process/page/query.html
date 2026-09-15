@@ -715,7 +715,8 @@
 
   <script>
     // 检索服务地址（必须与 query_service.py 末尾 uvicorn.run 的端口一致）
-    const API_HOST = 'http://127.0.0.1:9091';
+    // 回退地址按“当前页面所在主机 + 9091”拼，这样无论从 127.0.0.1 还是局域网 IP 打开都指向同一台后端
+    const API_HOST = `${location.protocol}//${location.hostname}:9091`;
     // 只有当页面本身就是由检索服务(9091)提供时才走同源；
     // 若通过 IDE 内置预览 / 静态服务器 / file:// 打开，页面所在源并不是后端，
     // 此时必须显式指向 API_HOST，否则 /health、/query 会打到“提供页面的那台服务器”上，

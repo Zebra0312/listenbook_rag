@@ -116,7 +116,7 @@ def audio_public_url(object_name: str) -> str:
     bucket = minio_config.audio_bucket_name
     rel = object_name.lstrip("/")
     scheme = "https" if minio_config.minio_secure else "http"
-    return f"{scheme}://{minio_config.endpoint}/{bucket}/{rel}"
+    return f"{scheme}://{minio_config.public_endpoint}/{bucket}/{rel}"
 
 
 # 5. 语音音频：上传本地文件并返回公开URL
