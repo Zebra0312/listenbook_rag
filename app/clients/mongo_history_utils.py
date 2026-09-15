@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 # 导入pymongo核心模块：MongoDB原生Python驱动，实现数据库连接和操作
 # ASCENDING：表示升序排序，用于MongoDB索引和查询排序
-from pymongo import MongoClient, ASCENDING
+from pymongo import MongoClient, ASCENDING, DESCENDING
 # 导入bson的ObjectId：MongoDB默认的主键类型，用于唯一标识文档
 from bson import ObjectId
 # 导入dotenv模块：用于从.env文件加载环境变量，避免硬编码敏感配置（如MongoDB连接地址）
@@ -113,7 +113,9 @@ def save_chat_message(
         rewritten_query: str = "",
         item_names: List[str] = None,
         image_urls: List[str] = None,
-        message_id: str = None
+        sources: List[dict] = None,
+        message_id: str = None,
+        audio_url: str = ""
 ) -> str:
     """
     写入/更新单条会话记录到MongoDB
@@ -124,7 +126,9 @@ def save_chat_message(
     :param rewritten_query: 重写后的查询语句（可选，用于检索增强等场景，默认空字符串）
     :param item_names: 关联的商品名称列表（可选，支持多商品，默认None）
     :param image_urls: 关联的图片URL列表（可选，默认None）
+    :param sources: 本次答案的参考来源列表（智库切片 / MCP 书籍，用于前端来源展示与刷新后恢复）
     :param message_id: 记录主键ID（可选，有值则更新，无值则新增）
+    :param audio_url: 语音提问的音频URL（可选，文本提问保持空字符串；用于刷新后回放语音）
     :return: 插入/更新的记录唯一标识（新增返回ObjectId字符串，更新返回传入的message_id）
     """
     # 生成当前时间的时间戳（秒级），用于记录消息的创建时间，后续用于排序和查询
@@ -138,6 +142,8 @@ def save_chat_message(
         "rewritten_query": rewritten_query or "",  # 重写查询，空值处理为空字符串
         "item_names": item_names,  # 关联商品名称列表
         "image_urls": image_urls,  # 关联图片URL列表
+        "sources": sources or [],  # 参考来源列表（智库 / MCP），刷新后可恢复来源展示
+        "audio_url": audio_url or "",  # 语音提问的音频URL（文本提问为空字符串）
         "ts": ts  # 时间戳，排序和时间筛选维度
     }
 
@@ -208,9 +214,14 @@ def get_recent_messages(session_id: str, limit: int = 10) -> List[Dict[str, Any]
         # find(query)：获取符合条件的游标（惰性加载，不立即查询）
         # sort("ts", ASCENDING)：按ts字段升序（从旧到新），适配LLM上下文顺序
         # limit(limit)：限制返回的最大条数
-        cursor = mongo_tool.chat_message.find(query).sort("ts", ASCENDING).limit(limit)
-        # 将游标转为列表，触发实际数据库查询，获取所有符合条件的文档
+        # 取"最近"的 limit 条：先按时间倒序取前 N 条，再反转回正序（适配 LLM 上下文顺序）。
+        # 【修复】原实现是 sort(ASCENDING).limit(N)，实际取到的是"最早的 N 条"——
+        # 会话超过 N 条时会漏掉最新消息，表现为「刷新后看不到最新的语音/问答」。
+        cursor = mongo_tool.chat_message.find(query).sort("ts", DESCENDING).limit(limit)
+        # 将游标转为列表，触发实际数据库查询
         messages = list(cursor)
+        # 反转成正序（旧 → 新），保持与 LLM 上下文/前端渲染一致的顺序
+        messages.reverse()
         # 返回查询结果列表
         return messages
     except Exception as e:
@@ -240,3 +251,49 @@ if __name__ == "__main__":
     # 遍历打印每条记录的详细内容
     for m in messages:
         print(f" {m}  ")
+
+def list_chat_sessions(limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    列出会话概要，按「最后提问时间」倒序，供前端左侧会话列表使用。
+
+    :param limit: 最多返回多少个会话
+    :return: [{"session_id", "title", "last_ts", "msg_count"}, ...]
+
+    用一次聚合同时拿到「每个会话的标题 + 最后活动时间 + 提问条数」，避免 N+1 查询。
+    标题取该会话**最早的一条用户提问**（先按 ts 升序再 $first）；
+    排序用的却是**最新**的 ts —— 一个是「叫什么名字」，一个是「多久没聊」，互不冲突。
+    """
+    try:
+        mongo_tool = get_history_mongo_tool()
+        pipeline = [
+            {"$match": {"role": "user"}},
+            {"$sort": {"ts": 1}},
+            {
+                "$group": {
+                    "_id": "$session_id",
+                    "title": {"$first": "$text"},
+                    "last_ts": {"$max": "$ts"},
+                    "msg_count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"last_ts": -1}},
+            {"$limit": max(1, int(limit))},
+        ]
+        items: List[Dict[str, Any]] = []
+        for doc in mongo_tool.chat_message.aggregate(pipeline):
+            # 标题压成单行并截断，前端用省略号展示，这里先控住长度
+            title = (doc.get("title") or "").strip().replace("\n", " ")
+            if len(title) > 60:
+                title = title[:60] + "…"
+            items.append(
+                {
+                    "session_id": doc.get("_id") or "",
+                    "title": title,
+                    "last_ts": doc.get("last_ts") or 0,
+                    "msg_count": doc.get("msg_count") or 0,
+                }
+            )
+        return items
+    except Exception as e:
+        logging.error(f"Error listing chat sessions: {e}")
+        return []

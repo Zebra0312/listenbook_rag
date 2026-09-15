@@ -81,7 +81,7 @@
     }
     .app{
       width:100%;
-      max-width:980px;
+      max-width:1200px;   /* 780 主区 + 236 侧栏，比单栏时略宽以保住对话区宽度 */
       height:min(820px, 92vh);
       background:var(--paper-0);
       border:1px solid var(--wood-200);
@@ -89,7 +89,76 @@
       box-shadow:var(--shadow-md);
       overflow:hidden;
       display:flex;
+      flex-direction:row;   /* 左侧会话栏 + 右侧主区 */
+      position:relative;
+    }
+    /* ---------- 左侧会话栏 ---------- */
+    .sidebar{
+      flex:0 0 236px;
+      width:236px;
+      display:flex;
       flex-direction:column;
+      padding:12px 10px 10px;
+      background:
+        var(--paper-noise),
+        linear-gradient(180deg, var(--paper-100), var(--paper-50));
+      border-right:1px solid var(--wood-200);
+      overflow:hidden;
+    }
+    .app.nav-hidden .sidebar{ display:none; }
+    .newchat{
+      display:flex; align-items:center; justify-content:center; gap:7px;
+      width:100%; padding:9px 10px; margin-bottom:6px;
+      border:none; border-radius:10px; cursor:pointer;
+      font-size:12.5px; font-family:inherit; color:oklch(97% 0.02 85);
+      background:linear-gradient(135deg, var(--amber-500), var(--wood-500));
+      box-shadow:0 3px 8px oklch(25% 0.05 50 / .28);
+    }
+    .newchat:hover{ filter:brightness(1.06); }
+    .newchat svg{ width:15px; height:15px; }
+    .sess-head{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:9px 8px 6px;
+      font-size:11px; letter-spacing:.04em; color:var(--ink-500);
+    }
+    .sess-count{ font-size:10.5px; color:var(--ink-500); }
+    .sess-list{ flex:1; overflow:auto; display:flex; flex-direction:column; gap:2px; }
+    .sess{
+      display:flex; align-items:center; gap:6px;
+      padding:8px 8px 8px 10px;
+      border-radius:9px; cursor:pointer;
+      font-size:12.5px; color:var(--ink-700);
+    }
+    .sess:hover{ background:oklch(94% 0.022 80); }
+    .sess.active{
+      background:var(--amber-100); color:var(--wood-900); font-weight:500;
+      box-shadow:inset 2px 0 0 var(--amber-500);
+    }
+    .sess .t{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sess .d{ flex:0 0 auto; font-size:10.5px; color:var(--ink-500); }
+    .sess .x{
+      flex:0 0 auto; width:18px; height:18px; padding:0;
+      display:none; align-items:center; justify-content:center;
+      border:none; border-radius:5px; cursor:pointer;
+      background:transparent; color:var(--ink-500); font-size:13px; line-height:1;
+    }
+    .sess:hover .x{ display:flex; }
+    .sess .x:hover{ background:var(--err-bg); color:var(--err); }
+    .sess-empty{ padding:14px 8px; font-size:11.5px; color:var(--ink-500); text-align:center; }
+    .navtoggle{
+      flex:0 0 auto; width:30px; height:30px; padding:0;
+      display:flex; align-items:center; justify-content:center;
+      border:none; border-radius:8px; cursor:pointer;
+      background:oklch(100% 0 0 / .12); color:oklch(94% 0.015 80);
+    }
+    .navtoggle:hover{ background:oklch(100% 0 0 / .2); }
+    .navtoggle svg{ width:16px; height:16px; }
+    .main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+    /* 窄屏：会话栏改为覆盖式抽屉，避免挤压对话区 */
+    @media (max-width: 860px){
+      .app{ max-width:100%; }
+      .sidebar{ position:absolute; left:0; top:0; bottom:0; z-index:40; max-width:78%;
+                box-shadow:var(--shadow-md); }
     }
     .topbar{
       display:flex;
@@ -234,6 +303,59 @@
       color:oklch(96% 0.015 80);
       border-color:transparent;
     }
+    /* ---------- 参考来源（智库 / MCP） ---------- */
+    .sources{
+      margin-top:6px;
+      max-width:100%;
+      border:1px solid var(--wood-200);
+      border-radius:10px;
+      background:linear-gradient(180deg, var(--paper-0), var(--paper-50));
+      box-shadow:var(--shadow-sm);
+      overflow:hidden;
+    }
+    .src-head{
+      display:flex;align-items:center;justify-content:space-between;gap:8px;
+      padding:6px 10px;
+      background:linear-gradient(90deg, var(--wood-100), transparent);
+      border-bottom:1px solid var(--wood-200);
+    }
+    .src-title{
+      font-family:var(--font-display);
+      font-size:11.5px;font-weight:600;letter-spacing:.06em;color:var(--wood-700);
+    }
+    .src-counts{font-size:10.5px;color:var(--ink-500);}
+    .src-list{
+      list-style:none;margin:0;padding:5px 8px 7px;
+      display:flex;flex-direction:column;gap:3px;
+      max-height:186px;overflow-y:auto;
+    }
+    .src-list::-webkit-scrollbar{width:5px;}
+    .src-list::-webkit-scrollbar-thumb{background:var(--wood-200);border-radius:3px;}
+    .src{
+      display:flex;align-items:flex-start;gap:7px;
+      padding:4px 6px;border-radius:7px;
+      transition:background .16s ease;
+    }
+    .src:hover{background:var(--paper-100);}
+    .src-badge{
+      flex:none;margin-top:1px;
+      font-size:10px;line-height:15px;font-weight:600;letter-spacing:.02em;
+      padding:0 6px;border-radius:999px;white-space:nowrap;
+    }
+    .src-kb .src-badge{background:var(--wood-100);color:var(--wood-700);border:1px solid var(--wood-200);}
+    .src-mcp .src-badge{background:var(--amber-100);color:var(--wood-800);border:1px solid var(--amber-500);}
+    .src-body{flex:1;min-width:0;}
+    .src-main{
+      font-size:11.5px;color:var(--ink-900);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .src-sub{
+      margin-top:1px;font-size:10.5px;color:var(--ink-500);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .src-sub a{color:var(--amber-600);text-decoration:none;border-bottom:1px dotted currentColor;}
+    .src-sub a:hover{color:var(--amber-500);}
+
     .meta{
       font-size:11px;
       color:var(--ink-500);
@@ -259,49 +381,71 @@
     .answer-images{
       margin-top:10px;
       display:flex;
-      flex-direction:column;
+      flex-wrap:wrap;
+      align-items:flex-start;
       gap:10px;
     }
+    .img-item{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      width:132px;            /* 默认列宽（竖图 / 方图）；横图由 .is-landscape 放宽 */
+    }
+    /* 横图单独放宽列宽：同一高度上限下，竖图受 max-height 约束、横图的高度天然就矮，
+       留在 132px 列宽里会"喂不饱"而显得偏小。放宽到 264（2 倍）让它更大，
+       但高度上限仍是 176px —— 所以不会高过竖图。 */
+    .img-item.is-landscape{ width:264px; }
+    /* 尺寸上限 + 原比例：只给 max-width / max-height，不写死 width/height。
+       图片作为替换元素会保持自身宽高比等比缩放，因此既不裁切也不拉伸；
+       又因为只约束"上限"（不会放大），小图也不会被拉糊。
+       竖图受 max-height 约束、横图受列宽约束，高度都不会超过 176px。 */
     .answer-images img{
       display:block;
-      max-width:min(100%, 600px);
-      max-height:600px;
+      margin:0 auto;
       width:auto;
       height:auto;
-      border-radius:9px;
+      max-width:100%;        /* 相对列宽：竖图 132px / 横图 264px */
+      max-height:176px;
+      border-radius:8px;
       border:1px solid var(--wood-200);
-      box-shadow:var(--shadow-md);
-      background:var(--paper-0);
+      box-shadow:var(--shadow-sm);
+      background:var(--paper-100);
     }
-    .answer-images a{
-      font-size:12px;
+    .img-item a{
+      font-size:11px;
       color:var(--ink-500);
       text-decoration:none;
-      word-break:break-all;
+      border-bottom:1px dotted var(--wood-200);
     }
+    .img-item a:hover{color:var(--wood-700);}
 
     .typing{
       display:inline-flex;gap:6px;align-items:center;
     }
+    /* 气泡内部若由块级元素拼装（模板字符串会带入换行/缩进），
+       必须关掉 .bubble 继承来的 white-space:pre-wrap，否则空白会变成真实空行把气泡撑高 */
+    .bubble-tight{white-space:normal}
     /* ===== 语音条（微信风格）===== */
-    .voice-bubble{padding:8px 10px}
+    /* 关掉继承来的 white-space:pre-wrap：模板字符串里的换行/缩进否则会被当成真实空白撑高气泡 */
+    .voice-bubble{padding:4px 10px; white-space:normal}
     .voice-bar{
       display:flex;
       align-items:center;
       gap:8px;
-      height:30px;
-      min-width:86px;
+      height:22px;
+      min-width:80px;
       cursor:pointer;
       user-select:none;
     }
     .voice-text-btn{
       flex:0 0 auto;
-      width:26px;height:26px;
+      width:22px;height:22px;
       border-radius:50%;
       border:1px solid oklch(96% 0.015 80 / .55);
       background:oklch(96% 0.015 80 / .14);
       color:oklch(97% 0.015 80);
-      font-size:12px;
+      font-size:11px;
       line-height:1;
       cursor:pointer;
       display:flex;align-items:center;justify-content:center;
@@ -312,9 +456,9 @@
     .voice-text-btn.active{background:var(--amber-500);border-color:var(--amber-500);color:oklch(24% 0.03 60)}
     .voice-wave{
       flex:1 1 auto;
-      display:flex;align-items:center;justify-content:flex-start;
+      display:flex;align-items:center;justify-content:flex-end;
       gap:2px;
-      height:16px;
+      height:12px;
       overflow:hidden;
     }
     .voice-wave i{
@@ -324,14 +468,14 @@
     }
     .voice-dur{
       flex:0 0 auto;
-      font-size:12px;
+      font-size:11px;
       color:oklch(96% 0.015 80 / .92);
       font-variant-numeric:tabular-nums;
     }
     .voice-audio{display:none}
     .voice-transcript{
-      margin-top:8px;
-      padding-top:8px;
+      margin-top:6px;
+      padding-top:6px;
       border-top:1px dashed oklch(96% 0.015 80 / .28);
       font-size:13px;
       line-height:1.6;
@@ -500,8 +644,19 @@
 
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar">
+      <button class="newchat" id="btnNewChat" type="button" title="新建一个空会话">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        <span>新建对话</span>
+      </button>
+      <div class="sess-head"><span>最近对话</span><span class="sess-count" id="sessCount"></span></div>
+      <div class="sess-list" id="sessList"></div>
+      <div class="sess-empty" id="sessEmpty">还没有历史对话</div>
+    </aside>
+    <div class="main">
     <div class="topbar">
+      <button class="navtoggle" id="btnToggleNav" type="button" title="收起 / 展开会话栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
       <div class="brand">
         <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10 4.8 6.8 4.4 3.5 5.5v13c3.3-1.1 6.5-.7 8.5 1 2-1.7 5.2-2.1 8.5-1v-13c-3.3-1.1-6.5-.7-8.5 1z"/><path d="M12 6.5v13"/><path d="M15.5 10c1.1.9 1.1 2.6 0 3.5"/><path d="M18 8.5c2 1.6 2 4.9 0 6.5"/></svg></div>
         <div class="title">
@@ -541,6 +696,7 @@
         <span class="track"><span class="thumb"></span></span>
       </label>
     </div>
+    </div>
   </div>
 
   <script>
@@ -557,19 +713,50 @@
     const btnRecord = document.getElementById('btnRecord');
     const btnUploadAudio = document.getElementById('btnUploadAudio');
     const audioInput = document.getElementById('audioInput');
+
+    // 「上传音频文件」场景的默认提问：让系统判断这段内容出自哪本书，并简要介绍该书。
+    // 与录音按钮区分开——录音是"用户直接提问"，上传的多是"书里的内容片段"，用户想知道出处。
+    // 如需调整话术，改这一处即可。
+    const UPLOAD_FILE_PROMPT = '请判断以下内容出自哪本书，并简要介绍这本书：\n\n';
+
+    // 本次待提交的语音音频URL（录音/上传文件转写后设置，submitQuery 读取一次后清空）
+    let pendingAudioUrl = '';
     const apiPill = document.getElementById('apiPill');
     const btnClear = document.getElementById('btnClear');
     const streamToggle = document.getElementById('streamToggle');
+    const appEl = document.getElementById('app');
+    const sessListEl = document.getElementById('sessList');
+    const sessEmptyEl = document.getElementById('sessEmpty');
+    const sessCountEl = document.getElementById('sessCount');
+    const btnNewChat = document.getElementById('btnNewChat');
+    const btnToggleNav = document.getElementById('btnToggleNav');
 
-    // Session ID Logic
-    let sessionId = localStorage.getItem('kb_session_id');
-    if (!sessionId) {
-      sessionId = 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      localStorage.setItem('kb_session_id', sessionId);
+    // ---------- 会话（Session）逻辑 ----------
+    // 会话标识形如 sess-xxxx，存 localStorage；切换会话就是改写它。
+    // 后端所有历史接口都以它为维度：/history/{id}、/sessions、/stream/{id}。
+    function newSessionId(){
+      return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+    let sessionId = localStorage.getItem('kb_session_id') || newSessionId();
+    localStorage.setItem('kb_session_id', sessionId);
+
+    // 当前活跃的 SSE 连接：切换 / 新建会话时必须先关掉，
+    // 否则上一个会话的回答会继续往新会话的界面里写。
+    let activeStream = null;
+    function closeStream(){
+      if(activeStream){ try{ activeStream.close(); }catch(_){} activeStream = null; }
     }
 
+    // 滚到底部：先同步滚一次（点了发送要立刻看到自己的消息），
+    // 再在后续两帧各补一次 —— 头像等图片加载会改变内容高度，
+    // 只滚一次可能停在半路，表现为「我发的消息要等答案出来才看得到」。
     function scrollToBottom(){
-      chatEl.scrollTop = chatEl.scrollHeight;
+      const jump = () => { chatEl.scrollTop = chatEl.scrollHeight; };
+      jump();
+      requestAnimationFrame(() => {
+        jump();
+        requestAnimationFrame(jump);
+      });
     }
     function nowTime(){
       const d = new Date();
@@ -662,8 +849,15 @@
       return { idx: lastIdx, len: lastLen };
     }
 
+    // 【历史数据兼容】早期答案里可能残留模型抄自上下文的 [图片=<url>] 标注（甚至抄成空的 [图片=]）。
+    // 它不是正文的一部分：新答案已由后端清洗，这里再兜一层，让旧历史消息也显示干净。
+    const CTX_IMG_TAG_RE = /[\[【]\s*图片\s*=\s*[^\]】]*[\]】]/g;
+    function stripContextImageTags(text){
+      return String(text || '').replace(CTX_IMG_TAG_RE, '');
+    }
+
     function parseAnswerAndImages(text){
-      const raw = String(text || '');
+      const raw = stripContextImageTags(String(text || ''));
       const { idx, len } = findLastImageMarkerIndex(raw);
       if(idx === -1) return { text: raw, images: [] };
 
@@ -750,24 +944,35 @@
         imgWrap.className = 'answer-images';
         for(const url of images){
           const safeUrl = normalizeUrl(url);
+
+          // 每张图独立一格：尺寸上限内按原比例展示（不裁切不拉伸）；加载失败整格移除，不留空位
+          const item = document.createElement('div');
+          item.className = 'img-item';
+
           const img = document.createElement('img');
           img.loading = 'lazy';
           img.src = safeUrl;
           img.alt = '参考图片';
           img.referrerPolicy = 'no-referrer';
           img.addEventListener('error', () => {
-            img.style.display = 'none';
+            item.remove();
           });
-          imgWrap.appendChild(img);
+          // 横图（宽 > 高）放宽列宽，竖图 / 方图保持默认列宽
+          img.addEventListener('load', () => {
+            if(img.naturalWidth > img.naturalHeight) item.classList.add('is-landscape');
+          });
+          item.appendChild(img);
 
           const link = document.createElement('a');
           link.href = safeUrl;
           link.target = '_blank';
           link.rel = 'noopener noreferrer';
-          link.textContent = url;
-          imgWrap.appendChild(link);
+          link.textContent = '查看原图';
+          item.appendChild(link);
+
+          imgWrap.appendChild(item);
         }
-        containerEl.appendChild(imgWrap);
+        if(imgWrap.children.length > 0) containerEl.appendChild(imgWrap);
       }
     }
 
@@ -800,7 +1005,7 @@
 
     // 按录音时长决定语音条宽度（1s 最短，5s 及以上达到最长）
     function voiceBarWidth(durationSec){
-      const minW = 86, maxW = 232, maxDur = 5;
+      const minW = 80, maxW = 224, maxDur = 5;
       const d = Math.max(0.5, Math.min(Number(durationSec) || 1, maxDur));
       return Math.round(minW + (maxW - minW) * (d / maxDur));
     }
@@ -819,31 +1024,39 @@
       });
     }
 
-    // 静态声波竖线（高度固定，避免每次重绘跳变）
-    function voiceWaveHtml(){
-      const heights = [9, 15, 6, 16, 11, 13, 7, 15, 10, 12, 6, 14, 8, 12];
-      return heights.map(h => `<i style="height:${h}px"></i>`).join('');
+    // 声波竖线：数量按条形可用宽度自适应；高度从左到右递增（左矮右高）。
+    // 用户头像在右侧 = 声源在右，视觉上"从右往左"扩散衰减；竖线整体贴右排列。
+    function voiceWaveHtml(width){
+      const avail = Math.max(18, (Number(width) || 120) - 56);   // 扣掉「文」按钮 + 时长 + 间距
+      const count = Math.max(5, Math.min(18, Math.floor(avail / 5)));
+      let out = '';
+      for(let i = 0; i < count; i++){
+        const t = count > 1 ? i / (count - 1) : 1;
+        const h = Math.round(5 + t * 7);                          // 5px（远）→ 12px（近头像）
+        out += `<i style="height:${h}px"></i>`;
+      }
+      return out;
     }
 
     // 微信风格语音条：左侧圆形「文」按钮展开转写文字，点击语音条播放原声
-    function addUserVoiceMsg(blob, transcript, durationSec){
-      const audioUrl = URL.createObjectURL(blob);
+    // audioUrl：持久地址（MinIO）；durationSec 为 0 时（历史恢复）会从音频元数据异步回填
+    function addUserVoiceMsg(audioUrl, transcript, durationSec, ts){
       const id = 'voice-' + Math.random().toString(36).slice(2);
-      const width = voiceBarWidth(durationSec);
-      const durText = Math.max(1, Math.round(durationSec)) + '"';
+      const width = durationSec ? voiceBarWidth(durationSec) : 132;
+      const durText = durationSec ? (Math.max(1, Math.round(durationSec)) + '"') : '…';
       const html = `
         <div class="msg user" id="${id}">
           <div>
             <div class="bubble voice-bubble">
               <div class="voice-bar" style="width:${width}px">
                 <button class="voice-text-btn" title="显示 / 隐藏转写文字">文</button>
-                <span class="voice-wave">${voiceWaveHtml()}</span>
                 <span class="voice-dur">${durText}</span>
+                <span class="voice-wave">${voiceWaveHtml(width)}</span>
               </div>
               <div class="voice-transcript" hidden>${escapeHtml(transcript || '')}</div>
               <audio class="voice-audio" preload="metadata" src="${audioUrl}"></audio>
             </div>
-            <div class="meta">${nowTime()}</div>
+            <div class="meta">${ts ? formatTime(ts) : nowTime()}</div>
           </div>
           <div class="avatar"><img src="/assets/avatars/user/default.svg" alt="我"></div>
         </div>
@@ -854,6 +1067,20 @@
       const textBtn = el.querySelector('.voice-text-btn');
       const transcriptEl = el.querySelector('.voice-transcript');
       const audio = el.querySelector('.voice-audio');
+      const durEl = el.querySelector('.voice-dur');
+
+      // 时长未知（历史恢复场景）：音频元数据加载后回填宽度、秒数与声波
+      if(!durationSec){
+        audio.addEventListener('loadedmetadata', () => {
+          if(isFinite(audio.duration) && audio.duration > 0){
+            const w = voiceBarWidth(audio.duration);
+            bar.style.width = w + 'px';
+            durEl.textContent = Math.max(1, Math.round(audio.duration)) + '"';
+            const wave = bar.querySelector('.voice-wave');
+            if(wave) wave.innerHTML = voiceWaveHtml(w);
+          }
+        });
+      }
 
       // 圆形「文」按钮：在语音条下方展开 / 收起转写文字
       textBtn.addEventListener('click', (e) => {
@@ -889,7 +1116,111 @@
       scrollToBottom();
     }
 
-    function addBotMsgWithTime(text, ts, imageUrls){
+    // ---------- 参考来源（智库切片 / MCP 书籍） ----------
+    function buildSourceItem(s){
+      const li = document.createElement('li');
+      const isMcp = (s && s.kind === 'mcp');
+      li.className = 'src ' + (isMcp ? 'src-mcp' : 'src-kb');
+
+      const badge = document.createElement('span');
+      badge.className = 'src-badge';
+      badge.textContent = isMcp ? 'MCP' : '智库';
+      li.appendChild(badge);
+
+      const body = document.createElement('div');
+      body.className = 'src-body';
+
+      // 主标题：智库用「书名 · 作者」，MCP 用返回的标题（本身已含书名+作者）
+      const main = document.createElement('div');
+      main.className = 'src-main';
+      const book = (s.book_name || '').trim();
+      const author = (s.author || '').trim();
+      let mainText = (s.title || '').trim();
+      if(book){ mainText = author ? `${book} · ${author}` : book; }
+      main.textContent = mainText || '（未命名来源）';
+      main.title = main.textContent;
+      body.appendChild(main);
+
+      // 副标题：智库给 切片标题 / 内容类型 / 来源文件；MCP 给来源说明 + 详情链接
+      const subParts = [];
+      if(isMcp){
+        subParts.push('百炼书旗 · 全网书籍信息');
+      }else{
+        const t = (s.title || '').trim();
+        if(t && t !== main.textContent) subParts.push(t);
+        if(s.content_type) subParts.push(s.content_type);
+        if(s.source_file) subParts.push(s.source_file);
+      }
+      if(subParts.length){
+        const sub = document.createElement('div');
+        sub.className = 'src-sub';
+        sub.textContent = subParts.join(' · ');
+        if(isMcp && s.url){
+          sub.textContent += ' · ';
+          const link = document.createElement('a');
+          link.href = String(s.url);
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = '查看详情';
+          sub.appendChild(link);
+        }
+        sub.title = sub.textContent;
+        body.appendChild(sub);
+      }
+
+      li.appendChild(body);
+      return li;
+    }
+
+    // 把来源列表渲染到某条助手消息里（幂等：重复调用只更新，不叠加）
+    function renderSources(botMsgEl, sources){
+      if(!botMsgEl) return;
+      const contentEl = botMsgEl.querySelector(':scope > div:not(.avatar)');
+      if(!contentEl) return;
+      let box = contentEl.querySelector(':scope > .sources');
+      const list = Array.isArray(sources)
+        ? sources.filter(x => x && typeof x === 'object')
+        : [];
+
+      if(list.length === 0){
+        if(box) box.remove();
+        return;
+      }
+
+      if(!box){
+        box = document.createElement('div');
+        box.className = 'sources';
+        const metaEl = contentEl.querySelector('.meta');
+        if(metaEl) contentEl.insertBefore(box, metaEl);
+        else contentEl.appendChild(box);
+      }
+      box.textContent = '';
+
+      const kbCount = list.filter(x => x.kind !== 'mcp').length;
+      const mcpCount = list.length - kbCount;
+
+      const head = document.createElement('div');
+      head.className = 'src-head';
+      const title = document.createElement('span');
+      title.className = 'src-title';
+      title.textContent = '参考来源';
+      const counts = document.createElement('span');
+      counts.className = 'src-counts';
+      const parts = [];
+      if(kbCount) parts.push(`智库 ${kbCount}`);
+      if(mcpCount) parts.push(`MCP ${mcpCount}`);
+      counts.textContent = parts.join(' · ');
+      head.appendChild(title);
+      head.appendChild(counts);
+      box.appendChild(head);
+
+      const ul = document.createElement('ul');
+      ul.className = 'src-list';
+      for(const item of list){ ul.appendChild(buildSourceItem(item)); }
+      box.appendChild(ul);
+    }
+
+    function addBotMsgWithTime(text, ts, imageUrls, sources){
       const id = 'bot-his-' + Math.random().toString(36).slice(2);
       const html = `
         <div class="msg bot" id="${id}">
@@ -905,6 +1236,7 @@
       if(el){
         const answerEl = el.querySelector('.answer');
         renderAnswerWithImages(answerEl, text || '', imageUrls || []);
+        renderSources(el, sources);
       }
       scrollToBottom();
     }
@@ -915,7 +1247,7 @@
         <div class="msg bot" id="${id}">
           <div class="avatar bot"><img src="/assets/avatars/bot/assistant.svg" alt="听书智库"></div>
           <div style="min-width: 180px;">
-            <div class="bubble">
+            <div class="bubble bubble-tight">
               <span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
               <details class="progress" open>
                 <summary>阶段进度（等待中）</summary>
@@ -965,7 +1297,7 @@
       }
     }
 
-    function finalizeBotAnswer(botMsgEl, answer, error, imageUrls){
+    function finalizeBotAnswer(botMsgEl, answer, error, imageUrls, sources){
       const bubble = botMsgEl.querySelector('.bubble');
       const progress = botMsgEl.querySelector('details.progress');
       const err = (error || '').trim();
@@ -982,6 +1314,7 @@
         errEl.textContent = `抱歉，本次处理失败：\n${err}`;
         bubble.appendChild(errEl);
         if(progressEl) bubble.appendChild(progressEl);
+        loadSessions();   // 首条提问后刷新左侧列表（标题 / 时间 / 排序）
         return;
       }
 
@@ -995,7 +1328,9 @@
       answerEl.className = 'answer';
       bubble.appendChild(answerEl);
       renderAnswerWithImages(answerEl, answer || '', imageUrls || []);
+      renderSources(botMsgEl, sources);
       if(progressEl) bubble.appendChild(progressEl);
+      loadSessions();   // 同上：让新会话立刻出现在左侧列表里
     }
 
     async function apiHealth(){
@@ -1008,21 +1343,189 @@
       }
     }
 
+    // 清空消息区（保留首条欢迎消息）
+    function clearMessages(){
+      const nodes = Array.from(chatEl.querySelectorAll('.msg'));
+      for(let i=1;i<nodes.length;i++) nodes[i].remove();
+    }
+
+    // ---------- 左侧会话栏 ----------
+    function isNarrow(){
+      return window.matchMedia('(max-width: 860px)').matches;
+    }
+
+    // 列表右侧的时间：今天显示时刻，昨天显示“昨天”，更早显示月-日
+    function relTime(ts){
+      if(!ts) return '';
+      const d = new Date(ts * 1000);
+      const now = new Date();
+      if(d.toDateString() === now.toDateString()){
+        return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      }
+      const y = new Date(now.getTime() - 86400000);
+      if(d.toDateString() === y.toDateString()) return '昨天';
+      return (d.getMonth() + 1) + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    // 服务端会话列表 + 本地乐观项（本次刚发出、后端可能还没落库的那条）
+    let serverSessions = [];
+    let localSessions = [];
+
+    // 合并两边的会话：同一个 session 以服务端数据为准（标题更真实），
+    // 只在本地存在的（刚发出、还没写库）也照常显示，最后按最后活动时间倒序。
+    function mergeSessions(serverList, localList){
+      const map = new Map();
+      for(const s of (serverList || [])){
+        if(s && s.session_id) map.set(s.session_id, s);
+      }
+      for(const s of (localList || [])){
+        if(!s || !s.session_id) continue;
+        if(map.has(s.session_id)){
+          const real = map.get(s.session_id);
+          map.set(s.session_id, {
+            ...real,
+            title: real.title || s.title,
+            last_ts: Math.max(real.last_ts || 0, s.last_ts || 0)
+          });
+        }else{
+          map.set(s.session_id, s);
+        }
+      }
+      const all = Array.from(map.values());
+      all.sort((a, b) => (b.last_ts || 0) - (a.last_ts || 0));
+      return all;
+    }
+
+    function renderSessions(){
+      sessListEl.textContent = '';
+      const list = mergeSessions(serverSessions, localSessions);
+      sessCountEl.textContent = list.length ? String(list.length) : '';
+      sessEmptyEl.style.display = list.length ? 'none' : 'block';
+      for(const it of list){
+        const el = document.createElement('div');
+        el.className = 'sess' + (it.session_id === sessionId ? ' active' : '');
+        el.title = it.title || '(无标题)';
+
+        const t = document.createElement('span');
+        t.className = 't';
+        t.textContent = it.title || '(无标题)';
+        el.appendChild(t);
+
+        const d = document.createElement('span');
+        d.className = 'd';
+        d.textContent = relTime(it.last_ts);
+        el.appendChild(d);
+
+        const x = document.createElement('button');
+        x.className = 'x';
+        x.type = 'button';
+        x.textContent = '×';
+        x.title = '删除该会话';
+        x.addEventListener('click', (ev) => { ev.stopPropagation(); deleteSession(it.session_id); });
+        el.appendChild(x);
+
+        el.addEventListener('click', () => switchSession(it.session_id));
+        sessListEl.appendChild(el);
+      }
+    }
+
+    async function loadSessions(){
+      try{
+        const res = await fetch(`${API_BASE}/sessions?limit=50`);
+        if(!res.ok) return;
+        const data = await res.json();
+        serverSessions = data.items || [];
+        renderSessions();
+      }catch(_){}
+    }
+
+    // 「按下发送就置顶」：乐观地把当前会话排到列表最前面。
+    // 为什么不直接 loadSessions()：后端要等 node_item_name_confirm 写库后
+    // /sessions 才查得到这条会话，若等到那一刻才刷新，用户会看到自己的会话
+    // 「突然弹上来」。这里先用提问原文做标题占位（哪怕这轮回答失败也照样保留），
+    // 等 loadSessions 拿到真实标题/时间后会自动覆盖。
+    function bumpSessionToTop(title){
+      const t = String(title || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+      const now = Math.floor(Date.now() / 1000);
+      const hit = localSessions.find(s => s.session_id === sessionId);
+      if(hit){
+        hit.title = hit.title || t;
+        hit.last_ts = now;
+      }else{
+        localSessions.push({ session_id: sessionId, title: t, last_ts: now, msg_count: 1, local: true });
+      }
+      renderSessions();
+    }
+
+    // 切换会话：换 id → 拉该会话历史 → 重画列表高亮
+    async function switchSession(id){
+      if(!id) return;
+      closeStream();
+      sessionId = id;
+      localStorage.setItem('kb_session_id', sessionId);
+      pendingAudioUrl = '';
+      sendBtn.disabled = false;
+      if(isNarrow()) appEl.classList.add('nav-hidden');
+      await loadHistory();
+      await loadSessions();
+      inputEl.focus();
+    }
+
+    // 新建会话：只换 id 并清空界面，**不删旧会话数据**（旧会话仍留在列表里）
+    function startNewChat(){
+      closeStream();
+      sessionId = newSessionId();
+      localStorage.setItem('kb_session_id', sessionId);
+      pendingAudioUrl = '';
+      clearMessages();
+      inputEl.value = '';
+      sendBtn.disabled = false;
+      if(isNarrow()) appEl.classList.add('nav-hidden');
+      loadSessions();   // 新会话还没消息，列表里所有项都不再高亮
+      inputEl.focus();
+      scrollToBottom();
+    }
+
+    async function deleteSession(id){
+      if(!id) return;
+      if(!confirm('删除这个会话的全部记录？此操作无法恢复。')) return;
+      try{
+        await fetch(`${API_BASE}/history/${id}`, { method: 'DELETE' });
+      }catch(_){}
+      // 删的正好是当前会话 → 换一个新 id，避免继续往已删除的会话里写
+      if(id === sessionId){
+        closeStream();
+        sessionId = newSessionId();
+        localStorage.setItem('kb_session_id', sessionId);
+        clearMessages();
+      }
+      // 本地乐观项与服务端缓存都要清掉，否则删完还会在列表里留一条
+      localSessions = localSessions.filter(s => s.session_id !== id);
+      serverSessions = serverSessions.filter(s => s.session_id !== id);
+      renderSessions();
+      await loadSessions();
+    }
+
     async function loadHistory(){
       try{
-        const res = await fetch(`${API_BASE}/history/${sessionId}`);
+        // limit 放大到 50：默认 10 条对长会话太少，会看不到较早的语音消息
+        const res = await fetch(`${API_BASE}/history/${sessionId}?limit=50`);
         if(!res.ok) return;
         const data = await res.json();
         const items = Array.isArray(data.items) ? data.items : [];
-        if(items.length === 0) return;
-        // 保留首条欢迎消息，其余先清空再渲染历史
-        const nodes = Array.from(chatEl.querySelectorAll('.msg'));
-        for(let i=1;i<nodes.length;i++) nodes[i].remove();
+        // 无论目标会话有没有消息都先清空（保留首条欢迎消息）：
+        // 否则从「有消息的会话」切到「空会话」时会残留上一个会话的内容
+        clearMessages();
         for(const item of items){
           if(item.role === 'user'){
-            addUserMsgWithTime(item.text || '', item.ts);
+            // 语音提问：历史里存了音频URL → 恢复成可播放的语音条（时长由音频元数据回填）
+            if(item.audio_url){
+              addUserVoiceMsg(item.audio_url, item.text || '', 0, item.ts);
+            }else{
+              addUserMsgWithTime(item.text || '', item.ts);
+            }
           }else{
-            addBotMsgWithTime(item.text || '', item.ts, item.image_urls || []);
+            addBotMsgWithTime(item.text || '', item.ts, item.image_urls || [], item.sources || []);
           }
         }
         scrollToBottom();
@@ -1031,13 +1534,17 @@
 
     async function submitQuery(text){
       const isStream = streamToggle.checked;
+      // 语音提问的音频URL只生效一次：取出后立即清空
+      const audioRef = pendingAudioUrl || '';
+      pendingAudioUrl = '';
       const res = await fetch(`${API_BASE}/query`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
           query: text,
           session_id: sessionId,
-          is_stream: isStream
+          is_stream: isStream,
+          audio_url: audioRef
         })
       });
       if(!res.ok){
@@ -1057,12 +1564,12 @@
 
           if(data.status === 'completed'){
             if(typing) typing.remove();
-            finalizeBotAnswer(botMsgEl, data.answer, data.error, data.image_urls || []);
+            finalizeBotAnswer(botMsgEl, data.answer, data.error, data.image_urls || [], data.sources);
             clearInterval(interval);
             sendBtn.disabled = false;
           }else if(data.status === 'failed'){
             if(typing) typing.remove();
-            finalizeBotAnswer(botMsgEl, data.answer, data.error || 'failed', data.image_urls || []);
+            finalizeBotAnswer(botMsgEl, data.answer, data.error || 'failed', data.image_urls || [], data.sources);
             clearInterval(interval);
             sendBtn.disabled = false;
           }
@@ -1080,6 +1587,8 @@
       if(!skipUserMsg) addUserMsg(text);
       const botMsgEl = addBotMsgSkeleton();
       sendBtn.disabled = true;
+      // 会话栏乐观置顶：按下发送就排到最上面，不等答案生成
+      bumpSessionToTop(text);
 
       try{
         const isStream = streamToggle.checked;
@@ -1094,7 +1603,7 @@
           // 非流式：直接拿到结果
           // data: { session_id, answer, done_list, error, message }
           renderProgress(botMsgEl, data.done_list || [], [], 'completed');
-          finalizeBotAnswer(botMsgEl, data.answer, data.error, data.image_urls || []);
+          finalizeBotAnswer(botMsgEl, data.answer, data.error, data.image_urls || [], data.sources);
           sendBtn.disabled = false;
           return;
         }
@@ -1110,7 +1619,7 @@
           bubble.insertBefore(answerEl, bubble.firstChild);
         }
 
-        const es = new EventSource(`${API_BASE}/stream/${session_id}`);
+        const es = activeStream = new EventSource(`${API_BASE}/stream/${session_id}`);
         console.log('[perf] C EventSource created', performance.now(), { session_id });
         let rawAnswerText = '';
         // 缓存最近一次进度快照：收到 final 后连接即关闭，后端后续的 progress 送不到，
@@ -1163,8 +1672,9 @@
             // 流式 delta 可能不包含“【图片】/图片列表”，最终包的 d.answer 才是完整答案；优先使用 d.answer
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
+            renderSources(botMsgEl, d.sources);
           }catch(_){}
-          es.close();
+          closeStream();
           sendBtn.disabled = false;
         });
 
@@ -1184,8 +1694,9 @@
             renderProgress(botMsgEl, doneList, [], d.status || 'completed');
             const finalText = (d && typeof d.answer === 'string' && d.answer.trim().length > 0) ? d.answer : (rawAnswerText || answerEl.textContent || '');
             renderAnswerWithImages(answerEl, finalText, d.image_urls || []);
+            renderSources(botMsgEl, d.sources);
           }catch(_){}
-          es.close();
+          closeStream();
           sendBtn.disabled = false;
         });
 
@@ -1208,7 +1719,7 @@
             rawAnswerText += `\n\n（错误：SSE 连接中断/失败）`;
             renderStreamingText(answerEl, rawAnswerText);
           }
-          es.close();
+          closeStream();
           sendBtn.disabled = false;
         });
       }catch(e){
@@ -1248,8 +1759,12 @@
         }
         // 转写完成：移除临时气泡，展示语音条（转写文字默认收起），再复用 onSend 发起检索
         statusMsg.remove();
-        addUserVoiceMsg(file, transcript, await audioDuration(file));
-        inputEl.value = transcript;
+        // 优先用 MinIO 持久地址（刷新后可回放）；未配置/上传失败则退回本地 blob
+        const upAudioUrl = data.audio_url || URL.createObjectURL(file);
+        addUserVoiceMsg(upAudioUrl, transcript, await audioDuration(file));
+        pendingAudioUrl = data.audio_url || '';
+        // 上传文件：默认带上「判断出处 + 简介该书」的提问，拼在转写文本前面
+        inputEl.value = UPLOAD_FILE_PROMPT + transcript;
         onSend(true);
       }catch(e){
         bubble.innerHTML = `音频转写失败：${escapeHtml(e.message || e)}`;
@@ -1364,7 +1879,10 @@
         const transcript = (data.query || '').trim();
         if(!transcript){ throw new Error('录音转写结果为空，请确认录音清晰'); }
         statusMsg.remove();
-        addUserVoiceMsg(blob, transcript, duration);
+        // 优先用 MinIO 持久地址（刷新后可回放）；上传失败则退回本地 blob（本次可播）
+        const audioUrl = data.audio_url || URL.createObjectURL(blob);
+        addUserVoiceMsg(audioUrl, transcript, duration);
+        pendingAudioUrl = data.audio_url || '';
         inputEl.value = transcript;
         onSend(true);
       }catch(e){
@@ -1406,15 +1924,26 @@
         alert('服务端清空失败，仅清空本地显示');
       }
 
-      // 清空除首条欢迎消息外的内容
-      const nodes = Array.from(chatEl.querySelectorAll('.msg'));
-      for(let i=1;i<nodes.length;i++) nodes[i].remove();
+      clearMessages();
+      localSessions = localSessions.filter(s => s.session_id !== sessionId);
+      loadSessions();   // 当前会话已无消息 → 从左侧列表移除
       scrollToBottom();
     });
+
+    // 侧栏折叠状态：手动收起过就记住；首次访问且屏幕较窄则默认收起
+    const navHiddenPref = localStorage.getItem('kb_nav_hidden');
+    if(navHiddenPref === '1' || (navHiddenPref === null && isNarrow())) appEl.classList.add('nav-hidden');
+
+    btnToggleNav.addEventListener('click', () => {
+      const hidden = appEl.classList.toggle('nav-hidden');
+      localStorage.setItem('kb_nav_hidden', hidden ? '1' : '0');
+    });
+    btnNewChat.addEventListener('click', startNewChat);
 
     apiHealth();
     setInterval(apiHealth, 5000);
     loadHistory();
+    loadSessions();
     setTimeout(() => inputEl.focus(), 200);
   </script>
 </body>

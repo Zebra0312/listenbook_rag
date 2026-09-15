@@ -15,6 +15,7 @@ class MinIOConfig:
     secret_key: str  # MinIO秘钥（对应MINIO_SECRET_KEY）
     bucket_name: str # MinIO默认存储桶名（知识库文件专用）
     minio_img_dir: str #Minio存储图片的文件夹
+    audio_bucket_name: str # 语音提问音频专用桶名（录音存档）
     minio_secure: bool # 是否使用ssl加密 http 还是 https
 
 
@@ -25,5 +26,6 @@ minio_config = MinIOConfig(
     secret_key=os.getenv("MINIO_SECRET_KEY"),
     bucket_name=os.getenv("MINIO_BUCKET_NAME"),
     minio_img_dir=os.getenv("MINIO_IMG_DIR"),
+    audio_bucket_name=os.getenv("MINIO_AUDIO_BUCKET"),
     minio_secure=os.getenv("MINIO_SECURE") == "True"
 )

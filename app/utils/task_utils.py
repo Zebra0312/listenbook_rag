@@ -43,7 +43,7 @@ _NODE_NAME_TO_CN: Dict[str, str] = {
     "node_answer_output": "生成答案",
     "node_rerank": "重排序",
     "node_rrf": "倒数排名融合",
-    "node_web_search_mcp": "网络搜索",
+    "node_web_search_mcp": "书籍查询",
     "node_search_embedding": "内容检索",
     "node_search_embedding_hyde": "内容检索(假设性文档)",
     "node_multi_search": "多路搜索",

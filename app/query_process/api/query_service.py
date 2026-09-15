@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
-from app.clients.mongo_history_utils import get_recent_messages, clear_history
+from app.clients.mongo_history_utils import get_recent_messages, clear_history, list_chat_sessions
 from app.core.logger import logger
 from app.query_process.agent.state import create_query_default_state
 
@@ -57,6 +57,7 @@ class QueryRequest(BaseModel):
     query: str = Field(..., description="查询内容")
     session_id: str = Field(None, description="会话ID")
     is_stream: bool = Field(False, description="是否流式返回")
+    audio_url: str = Field(None, description="语音提问的音频URL（可选，随消息存档供刷新后回放）")
 
 # 访问query.html
 @app.get("/query.html")
@@ -69,9 +70,14 @@ def query_page():
     return FileResponse(str(query_file_path))
 
 # 创建后台任务，通过图对象处理以后的问题query
-def run_query_graph(session_id: str, user_query: str, is_stream: bool = True):
-    # 创建初始化状态
-    init_state = create_query_default_state(session_id=session_id, original_query=user_query, is_stream=is_stream)
+def run_query_graph(session_id: str, user_query: str, is_stream: bool = True, audio_url: str = ""):
+    # 创建初始化状态（audio_url 随状态流转，最终写进历史记录，供刷新后回放语音）
+    init_state = create_query_default_state(
+        session_id=session_id,
+        original_query=user_query,
+        is_stream=is_stream,
+        audio_url=audio_url or "",
+    )
     try:
         # 执行图对象
         kb_query_app.invoke(init_state)
@@ -107,13 +113,13 @@ async def query(background_tasks: BackgroundTasks, request: QueryRequest):
     # 判断是否为流式调用
     if is_stream:
         # 执行后台任务
-        background_tasks.add_task(run_query_graph, session_id, user_query, is_stream)
+        background_tasks.add_task(run_query_graph, session_id, user_query, is_stream, request.audio_url)
         return {
             "message": "结果正在处理中...",
             "session_id": session_id
         }
     else:
-        run_query_graph(session_id, user_query, is_stream)
+        run_query_graph(session_id, user_query, is_stream, request.audio_url)
         answer = get_task_result(session_id, "answer", "")
         return {
             "message": "处理完成！",
@@ -144,7 +150,25 @@ def query_audio(file: UploadFile = File(...)):
     text = transcribe_audio(str(audio_path))
     if not text.strip():
         raise HTTPException(status_code=422, detail="音频转写结果为空，请确认音频内容清晰可辨")
-    return {"query": text, "filename": filename}
+
+    # 音频同样存档到 MinIO 语音专用桶（与录音路径一致），刷新页面后可回放；失败不阻断问答
+    audio_url = ""
+    try:
+        from app.clients.minio_utils import upload_audio_file
+        day = datetime.now().strftime("%Y-%m-%d")
+        ct_map = {
+            ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4",
+            ".flac": "audio/flac", ".aac": "audio/aac", ".ogg": "audio/ogg",
+        }
+        audio_url = upload_audio_file(
+            str(audio_path),
+            f"speak_content/{day}/{audio_path.name}",
+            content_type=ct_map.get(suffix, "audio/mpeg"),
+        )
+    except Exception as e:
+        logger.warning(f"音频上传 MinIO 失败（不影响本次问答，该语音刷新后不可回放）：{e}")
+
+    return {"query": text, "filename": filename, "audio_url": audio_url}
 
 # 语音提问（浏览器实时录音）：接收前端 MediaRecorder 录制的音频，统一转 mp3 存档后转写
 # 说明：录音默认落盘到项目 mp3/speak_content/（测试素材目录，已在 .gitignore 中忽略）；
@@ -186,7 +210,27 @@ def record_audio(file: UploadFile = File(...)):
     text = transcribe_audio(str(final_path))
     if not text.strip():
         raise HTTPException(status_code=422, detail="录音转写结果为空，请确认录音清晰、非静音")
-    return {"query": text, "filename": final_path.name, "saved_path": str(final_path)}
+
+    # 把录音存档到 MinIO 语音专用桶，拿到可长期访问的 URL —— 刷新页面后语音条仍能回放。
+    # 上传失败不阻断本次问答，只是这条语音刷新后不可回放（降级为空串）。
+    audio_url = ""
+    try:
+        from app.clients.minio_utils import upload_audio_file
+        day = datetime.now().strftime("%Y-%m-%d")
+        audio_url = upload_audio_file(
+            str(final_path),
+            f"speak_content/{day}/{final_path.name}",
+            content_type="audio/mpeg",
+        )
+    except Exception as e:
+        logger.warning(f"录音上传 MinIO 失败（不影响本次问答，该语音刷新后不可回放）：{e}")
+
+    return {
+        "query": text,
+        "filename": final_path.name,
+        "saved_path": str(final_path),
+        "audio_url": audio_url,
+    }
 
 # 创建处理sse请求的路径处理函数
 @app.get("/stream/{session_id}")
@@ -207,6 +251,16 @@ def health():
     return {"ok": True}
 
 # 查询最近的10条历史对话
+# 会话列表：供前端左侧会话栏展示与切换
+@app.get("/sessions")
+async def sessions(limit: int = 50):
+    """列出最近会话（标题 / 最后活动时间 / 提问条数），按最后活动倒序。"""
+    try:
+        return {"items": list_chat_sessions(limit)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"sessions error: {e}")
+
+
 @app.get("/history/{session_id}")
 async def history(session_id: str, limit: int = 10):
     try:
