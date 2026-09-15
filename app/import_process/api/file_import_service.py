@@ -9,6 +9,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.core.logger import logger
 from app.import_process.agent.main_graph import kb_import_app
@@ -38,6 +39,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# 挂载静态资源目录（头像 / 图标等），前端以 /assets/xxx 访问
+app.mount("/assets", StaticFiles(directory=str(PROJECT_ROOT / "assets")), name="assets")
 
 @app.get("/import.html")
 def import_file():

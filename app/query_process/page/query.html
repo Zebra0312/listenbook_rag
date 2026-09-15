@@ -6,25 +6,73 @@
   <title>听书智库 · 智能问答</title>
   <style>
     :root{
-      --bg:#f3f5f7;
-      --panel:#ffffff;
-      --text:#1f2d3d;
-      --muted:#7a869a;
-      --brand:#1aa7ff;
-      --brand2:#5b7cfa;
-      --bubble-user:#1aa7ff;
-      --bubble-bot:#ffffff;
-      --border:#e6e9ef;
-      --shadow:0 10px 30px rgba(31,45,61,.12);
+      /* 木色（品牌主色 · 深胡桃木） */
+      --wood-900: oklch(28% 0.05 50);
+      --wood-800: oklch(31% 0.06 52);
+      --wood-700: oklch(36% 0.065 55);
+      --wood-600: oklch(44% 0.07 55);
+      --wood-500: oklch(52% 0.075 55);
+      --wood-200: oklch(88% 0.03 70);
+      --wood-100: oklch(95% 0.02 72);
+
+      /* 纸张（背景 / 表面） */
+      --paper-0: oklch(99% 0.006 85);
+      --paper-50: oklch(97.5% 0.012 80);
+      --paper-100: oklch(94.5% 0.015 80);
+
+      /* 墨色（文字） */
+      --ink-900: oklch(27% 0.025 60);
+      --ink-700: oklch(39% 0.02 65);
+      --ink-500: oklch(52% 0.02 70);
+
+      /* 琥珀金（听书点缀） */
+      --amber-600: oklch(64% 0.15 65);
+      --amber-500: oklch(72% 0.15 70);
+      --amber-100: oklch(94% 0.04 80);
+
+      /* 语义 */
+      --ok: oklch(52% 0.10 152);
+      --ok-bg: oklch(94% 0.03 152);
+      --warn-bg: oklch(94% 0.045 80);
+      --err: oklch(52% 0.16 30);
+      --err-bg: oklch(95% 0.03 30);
+
+      /* 字体 */
+      --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+      --font-body: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+
+      /* 阴影（暖色，非纯黑） */
+      --shadow-sm: 0 1px 2px oklch(30% 0.03 60 / .08), 0 2px 6px oklch(30% 0.03 60 / .06);
+      --shadow-md: 0 2px 6px oklch(30% 0.04 60 / .08), 0 14px 36px oklch(30% 0.04 60 / .12);
+
+      /* 纸纹噪点 + 木纹 */
+      --paper-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      --wood-grain:
+        repeating-linear-gradient(90deg, oklch(20% 0.03 50 / .28) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, oklch(80% 0.02 80 / .05) 0 2px, transparent 2px 13px);
+
+      /* 兼容旧变量名（body 内联样式仍引用） */
+      --muted: var(--ink-500);
+      --brand: var(--wood-600);
+      --brand2: var(--amber-500);
+      --border: var(--wood-200);
+      --bubble-user: var(--wood-700);
+      --bubble-bot: var(--paper-0);
+      --bg: var(--paper-50);
+      --panel: var(--paper-0);
+      --text: var(--ink-900);
+      --shadow: var(--shadow-md);
     }
     *{box-sizing:border-box}
     body{
       margin:0;
-      font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, Arial, sans-serif;
-      background: radial-gradient(1200px 600px at 20% 0%, rgba(26,167,255,.18), transparent 60%),
-                  radial-gradient(1000px 500px at 90% 10%, rgba(91,124,250,.18), transparent 55%),
-                  var(--bg);
-      color:var(--text);
+      font-family: var(--font-body);
+      background:
+        var(--paper-noise),
+        radial-gradient(1000px 500px at 15% -5%, oklch(90% 0.03 70 / .5), transparent 60%),
+        radial-gradient(820px 420px at 100% 8%, oklch(88% 0.035 80 / .45), transparent 55%),
+        var(--paper-50);
+      color: var(--ink-900);
       height:100vh;
       display:flex;
       justify-content:center;
@@ -35,10 +83,10 @@
       width:100%;
       max-width:980px;
       height:min(820px, 92vh);
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:16px;
-      box-shadow:var(--shadow);
+      background:var(--paper-0);
+      border:1px solid var(--wood-200);
+      border-radius:14px;
+      box-shadow:var(--shadow-md);
       overflow:hidden;
       display:flex;
       flex-direction:column;
@@ -47,9 +95,12 @@
       display:flex;
       align-items:center;
       gap:12px;
-      padding:14px 18px;
-      border-bottom:1px solid var(--border);
-      background:linear-gradient(90deg, rgba(26,167,255,.10), rgba(91,124,250,.10));
+      padding:13px 18px;
+      color:oklch(94% 0.015 80);
+      background:
+        var(--wood-grain),
+        linear-gradient(180deg, var(--wood-700), var(--wood-800) 70%, var(--wood-900));
+      box-shadow:inset 0 1px 0 oklch(80% 0.03 80 / .18);
     }
     .brand{
       display:flex;
@@ -58,52 +109,69 @@
       min-width:240px;
     }
     .logo{
-      width:36px;height:36px;border-radius:10px;
-      background:linear-gradient(135deg, var(--brand), var(--brand2));
-      box-shadow:0 8px 18px rgba(26,167,255,.25);
+      width:38px;height:38px;
+      flex:0 0 auto;
+      border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      color:oklch(97% 0.02 85);
+      background:linear-gradient(135deg, var(--amber-500), var(--wood-500));
+      box-shadow:0 6px 16px oklch(25% 0.05 50 / .35), inset 0 1px 0 oklch(95% 0.02 80 / .5);
     }
+    .logo svg{width:22px;height:22px;display:block}
     .title{
       display:flex;
       flex-direction:column;
-      line-height:1.1;
+      line-height:1.15;
     }
-    .title strong{font-size:14px}
-    .title span{font-size:12px;color:var(--muted);margin-top:3px}
+    .title strong{
+      font-size:15px;
+      font-weight:600;
+      font-family:var(--font-display);
+      letter-spacing:.5px;
+    }
+    .title span{
+      font-size:12px;
+      color:oklch(85% 0.02 75);
+      margin-top:3px;
+    }
     .top-actions{
       margin-left:auto;
       display:flex;
       gap:10px;
       align-items:center;
     }
+    .top-actions label{color:oklch(85% 0.02 75)}
     .pill{
       font-size:12px;
-      color:var(--muted);
-      border:1px solid var(--border);
+      color:oklch(90% 0.02 80);
+      border:1px solid oklch(85% 0.02 75 / .28);
       padding:6px 10px;
       border-radius:999px;
-      background:#fff;
+      background:oklch(30% 0.05 50 / .25);
     }
     .btn{
       border:none;
-      background:linear-gradient(135deg, var(--brand), var(--brand2));
-      color:#fff;
+      background:linear-gradient(135deg, var(--amber-500), var(--wood-500));
+      color:oklch(97% 0.02 85);
       padding:8px 12px;
-      border-radius:10px;
+      border-radius:9px;
       font-size:12px;
       cursor:pointer;
+      box-shadow:0 3px 8px oklch(25% 0.05 50 / .3);
     }
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
     .chat{
       flex:1;
       overflow:auto;
-      padding:16px 14px 10px;
-      background:linear-gradient(180deg, rgba(26,167,255,.05), transparent 40%),
-                 linear-gradient(0deg, rgba(91,124,250,.05), transparent 45%);
+      padding:16px 16px 10px;
+      background:
+        var(--paper-noise),
+        linear-gradient(180deg, oklch(98% 0.012 82), var(--paper-50));
     }
     .dayline{
       text-align:center;
-      color:var(--muted);
+      color:var(--ink-500);
       font-size:12px;
       margin:6px 0 14px;
     }
@@ -111,13 +179,15 @@
       display:flex;
       gap:10px;
       margin:10px 0;
-      align-items:flex-end;
+      align-items:flex-start;
     }
     .msg.user{justify-content:flex-end}
-    /* 关键：只让“消息内容容器”(排除头像)在 flex 中可伸缩，避免被压到“1 个字宽”导致竖排换行 */
     .msg > div:not(.avatar){
       flex:1;
       min-width:0;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
     }
     .msg.user > div:not(.avatar){
       display:flex;
@@ -125,53 +195,66 @@
       align-items:flex-end;
     }
     .avatar{
-      width:34px;height:34px;border-radius:10px;
-      background:#e9eef7;
+      width:34px;height:34px;
+      border-radius:9px;
+      background:var(--wood-100);
       display:flex;align-items:center;justify-content:center;
-      font-size:14px;
-      color:#3b4a5a;
+      font-size:12px;
+      color:var(--wood-600);
       flex:0 0 auto;
+      font-family:var(--font-display);
+      overflow:hidden;
+      box-shadow:0 1px 3px oklch(30% 0.03 60 / .14);
     }
-    .avatar.bot{background:linear-gradient(135deg, rgba(26,167,255,.18), rgba(91,124,250,.18))}
+    .avatar img{
+      width:100%;height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .avatar.bot{
+      background:linear-gradient(135deg, var(--wood-100), var(--wood-200));
+      color:var(--wood-700);
+    }
     .bubble{
       max-width:min(720px, 76%);
-      display:inline-block;
-      border-radius:14px;
-      padding:10px 12px;
-      border:1px solid var(--border);
-      background:var(--bubble-bot);
+      display:block;
+      border-radius:10px;
+      padding:10px 13px;
+      border:1px solid var(--wood-200);
+      background:var(--paper-0);
       position:relative;
-      line-height:1.55;
+      line-height:1.6;
       font-size:14px;
       white-space:pre-wrap;
-      overflow-wrap: break-word;
+      overflow-wrap:break-word;
+      box-shadow:var(--shadow-sm);
     }
     .msg.user .bubble{
-      background:var(--bubble-user);
-      color:#fff;
+      background:linear-gradient(160deg, var(--wood-600), var(--wood-700));
+      color:oklch(96% 0.015 80);
       border-color:transparent;
     }
     .meta{
       font-size:11px;
-      color:var(--muted);
+      color:var(--ink-500);
       margin-top:6px;
     }
-    .msg.user .meta{color:rgba(255,255,255,.85)}
+    .msg.user .meta{color:var(--ink-500)}
     details.progress{
-      margin-top:8px;
-      border:1px dashed rgba(122,134,154,.45);
-      border-radius:12px;
-      padding:8px 10px;
-      background:rgba(122,134,154,.06);
+      margin-top:6px;
+      border:1px dashed var(--wood-200);
+      border-radius:8px;
+      padding:6px 9px;
+      background:oklch(97% 0.012 80 / .55);
     }
     details.progress summary{
       cursor:pointer;
       user-select:none;
-      color:var(--muted);
-      font-size:12px;
+      color:var(--ink-500);
+      font-size:11.5px;
     }
-    .progress ul{margin:8px 0 0 18px;padding:0}
-    .progress li{margin:4px 0;font-size:12px;color:#56657a}
+    .progress ul{margin:6px 0 0 16px;padding:0}
+    .progress li{margin:3px 0;font-size:11.5px;color:var(--ink-700);line-height:1.5}
 
     .answer-images{
       margin-top:10px;
@@ -180,19 +263,19 @@
       gap:10px;
     }
     .answer-images img{
-      display: block;
-      max-width: min(100%, 600px);
-      max-height: 600px;
-      width: auto;
-      height: auto;
-      border-radius:12px;
-      border:1px solid var(--border);
-      box-shadow:0 10px 24px rgba(31,45,61,.10);
-      background:#fff;
+      display:block;
+      max-width:min(100%, 600px);
+      max-height:600px;
+      width:auto;
+      height:auto;
+      border-radius:9px;
+      border:1px solid var(--wood-200);
+      box-shadow:var(--shadow-md);
+      background:var(--paper-0);
     }
     .answer-images a{
       font-size:12px;
-      color:var(--muted);
+      color:var(--ink-500);
       text-decoration:none;
       word-break:break-all;
     }
@@ -200,9 +283,73 @@
     .typing{
       display:inline-flex;gap:6px;align-items:center;
     }
+    /* ===== 语音条（微信风格）===== */
+    .voice-bubble{padding:8px 10px}
+    .voice-bar{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      height:30px;
+      min-width:86px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .voice-text-btn{
+      flex:0 0 auto;
+      width:26px;height:26px;
+      border-radius:50%;
+      border:1px solid oklch(96% 0.015 80 / .55);
+      background:oklch(96% 0.015 80 / .14);
+      color:oklch(97% 0.015 80);
+      font-size:12px;
+      line-height:1;
+      cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      font-family:var(--font-display);
+      transition:background-color .15s ease-out, color .15s ease-out;
+    }
+    .voice-text-btn:hover{background:oklch(96% 0.015 80 / .3)}
+    .voice-text-btn.active{background:var(--amber-500);border-color:var(--amber-500);color:oklch(24% 0.03 60)}
+    .voice-wave{
+      flex:1 1 auto;
+      display:flex;align-items:center;justify-content:flex-start;
+      gap:2px;
+      height:16px;
+      overflow:hidden;
+    }
+    .voice-wave i{
+      width:2px;border-radius:2px;
+      background:oklch(97% 0.015 80 / .85);
+      transform-origin:center;
+    }
+    .voice-dur{
+      flex:0 0 auto;
+      font-size:12px;
+      color:oklch(96% 0.015 80 / .92);
+      font-variant-numeric:tabular-nums;
+    }
+    .voice-audio{display:none}
+    .voice-transcript{
+      margin-top:8px;
+      padding-top:8px;
+      border-top:1px dashed oklch(96% 0.015 80 / .28);
+      font-size:13px;
+      line-height:1.6;
+      color:oklch(97% 0.015 80);
+      white-space:pre-wrap;
+      overflow-wrap:break-word;
+    }
+    .voice-transcript[hidden]{display:none}
+    .voice-bar.playing .voice-wave i{animation:wave .9s infinite ease-in-out}
+    .voice-bar.playing .voice-wave i:nth-child(2n){animation-delay:.12s}
+    .voice-bar.playing .voice-wave i:nth-child(3n){animation-delay:.26s}
+    @keyframes wave{
+      0%,100%{transform:scaleY(.5)}
+      50%{transform:scaleY(1.3)}
+    }
     .dot{
       width:7px;height:7px;border-radius:50%;
-      background:#9aa6b2;
+      background:var(--amber-500);
       animation:bounce 1.2s infinite ease-in-out;
     }
     .dot:nth-child(2){animation-delay:.15s}
@@ -213,79 +360,156 @@
     }
 
     .composer{
-      border-top:1px solid var(--border);
-      padding:12px 14px;
+      border-top:1px solid var(--wood-200);
+      padding:10px 14px;
       display:flex;
-      gap:10px;
-      align-items:flex-end;
-      background:#fff;
+      gap:8px;
+      align-items:center;
+      background:var(--paper-0);
+    }
+    .icon-btn{
+      width:44px;height:44px;
+      flex:0 0 auto;
+      border:1px solid var(--wood-200);
+      border-radius:10px;
+      cursor:pointer;
+      color:var(--wood-600);
+      background:var(--paper-50);
+      display:flex;align-items:center;justify-content:center;
+      transition:background-color .15s ease-out, border-color .15s ease-out, color .15s ease-out;
+    }
+    .icon-btn svg{width:20px;height:20px}
+    .icon-btn:hover{background:var(--wood-100);border-color:var(--wood-500)}
+    .icon-btn:disabled{opacity:.5;cursor:not-allowed}
+    .icon-btn.recording{
+      background:var(--err-bg);
+      border-color:var(--err);
+      color:var(--err);
+      animation:rec-pulse 1.2s infinite ease-in-out;
+    }
+    @keyframes rec-pulse{
+      0%,100%{box-shadow:0 0 0 0 oklch(52% 0.16 30 / .38)}
+      50%{box-shadow:0 0 0 6px oklch(52% 0.16 30 / 0)}
     }
     textarea{
       flex:1;
       resize:none;
+      height:44px;
       min-height:44px;
-      max-height:140px;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
+      max-height:120px;
+      padding:11px 12px;
+      border-radius:10px;
+      border:1px solid var(--wood-200);
       outline:none;
       font-size:14px;
       line-height:1.5;
+      font-family:var(--font-body);
+      color:var(--ink-900);
+      background:var(--paper-50);
+      overflow-y:auto;
     }
-    textarea:focus{border-color:rgba(26,167,255,.6); box-shadow:0 0 0 3px rgba(26,167,255,.12)}
-    .audio-btn{
-      width:44px;
-      height:44px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      cursor:pointer;
-      font-size:18px;
-      background:#f7f9fc;
-      flex-shrink:0;
-    }
-    .audio-btn:hover{background:#eef2f7}
-    .audio-btn:disabled{opacity:.5;cursor:not-allowed}
+    textarea:focus{border-color:var(--wood-500); box-shadow:0 0 0 3px oklch(52% 0.075 55 / .14)}
     .send{
-      width:88px;
+      width:80px;
       height:44px;
+      flex:0 0 auto;
       border:none;
-      border-radius:12px;
+      border-radius:10px;
       cursor:pointer;
       font-size:14px;
-      color:#fff;
-      background:linear-gradient(135deg, var(--brand), var(--brand2));
+      color:oklch(97% 0.02 85);
+      background:linear-gradient(135deg, var(--amber-500), var(--wood-500));
+      box-shadow:0 3px 8px oklch(25% 0.05 50 / .25);
     }
     .send:disabled{opacity:.6;cursor:not-allowed}
+    /* ===== 底部工具条（流式开关 + 快捷键提示）===== */
+    .footbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:0 14px 11px;
+      background:var(--paper-0);
+    }
     .hint{
-      padding:0 14px 12px;
-      color:var(--muted);
+      color:var(--ink-500);
       font-size:12px;
-      background:#fff;
+      line-height:20px;
+    }
+    /* 流式输出开关（toggle） */
+    .switch{
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      user-select:none;
+      flex:0 0 auto;
+    }
+    .switch input{
+      position:absolute;
+      width:1px;height:1px;
+      margin:0;
+      opacity:0;
+      pointer-events:none;
+    }
+    .switch .track{
+      position:relative;
+      width:34px;height:20px;
+      border-radius:999px;
+      background:var(--paper-100);
+      border:1px solid var(--wood-200);
+      transition:background-color .18s ease-out, border-color .18s ease-out;
+    }
+    .switch .thumb{
+      position:absolute;
+      top:2px;left:2px;
+      width:14px;height:14px;
+      border-radius:50%;
+      background:var(--paper-0);
+      box-shadow:0 1px 2px oklch(30% 0.03 60 / .3);
+      transition:transform .2s cubic-bezier(.22, 1, .36, 1);
+    }
+    .switch input:checked ~ .track{
+      background:var(--amber-500);
+      border-color:var(--amber-500);
+    }
+    .switch input:checked ~ .track .thumb{
+      transform:translateX(14px);
+    }
+    .switch input:focus-visible ~ .track{
+      box-shadow:0 0 0 3px oklch(52% 0.075 55 / .25);
+    }
+    .switch .txt{
+      font-size:12px;
+      color:var(--ink-500);
+      transition:color .18s ease-out;
+    }
+    .switch input:checked ~ .txt{
+      color:var(--ink-700);
     }
     .kbd{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      border:1px solid var(--border);
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      border:1px solid var(--wood-200);
       padding:1px 6px;
       border-radius:6px;
-      background:#f7f9fc;
-      color:#3b4a5a;
+      background:var(--paper-50);
+      color:var(--ink-700);
     }
   </style>
+
 </head>
 <body>
   <div class="app">
     <div class="topbar">
       <div class="brand">
-        <div class="logo"></div>
+        <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10 4.8 6.8 4.4 3.5 5.5v13c3.3-1.1 6.5-.7 8.5 1 2-1.7 5.2-2.1 8.5-1v-13c-3.3-1.1-6.5-.7-8.5 1z"/><path d="M12 6.5v13"/><path d="M15.5 10c1.1.9 1.1 2.6 0 3.5"/><path d="M18 8.5c2 1.6 2 4.9 0 6.5"/></svg></div>
         <div class="title">
           <strong>听书智库</strong>
           <span id="subTitle">在线 · 可查询知识库与联网信息</span>
         </div>
       </div>
       <div class="top-actions">
-        <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;color:var(--muted);margin-right:10px;">
-          <input type="checkbox" id="streamToggle" checked> 流式输出
-        </label>
         <span class="pill" id="apiPill">API: 未连接</span>
         <button class="btn" id="btnClear">清空对话</button>
       </div>
@@ -294,7 +518,7 @@
     <div class="chat" id="chat">
       <div class="dayline">今天</div>
       <div class="msg bot">
-        <div class="avatar bot">听书智库</div>
+        <div class="avatar bot"><img src="/assets/avatars/bot/assistant.svg" alt="听书智库"></div>
         <div>
           <div class="bubble">你好，我是听书智库的书籍知识助手。可以问我书籍推荐、书籍详情、内容检索与听书笔记，我会在“阶段进度”里展示处理过程。</div>
           <div class="meta">提示："你了解刘慈欣的《三体》吗?"</div>
@@ -303,12 +527,20 @@
     </div>
 
     <div class="composer">
-      <button class="audio-btn" id="btnAudio" title="上传音频提问（MP3/WAV 等，自动转写）">🎤</button>
+      <button class="icon-btn" id="btnRecord" title="点击开始录音，再点一次结束"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
+      <button class="icon-btn" id="btnUploadAudio" title="上传音频文件提问（mp3 / wav 等）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5"/><path d="M9.5 13.5 12 11l2.5 2.5"/></svg></button>
       <input type="file" id="audioInput" accept=".mp3,.wav,.m4a,.flac,.aac,.ogg" style="display:none">
-      <textarea id="input" placeholder="请输入问题，或点 🎤 上传音频提问"></textarea>
+      <textarea id="input" placeholder="输入问题，或点左侧按钮录音 / 上传音频"></textarea>
       <button class="send" id="send">发送</button>
     </div>
-    <div class="hint">快捷键：<span class="kbd">Enter</span> 发送，<span class="kbd">Shift</span>+<span class="kbd">Enter</span> 换行</div>
+    <div class="footbar">
+      <div class="hint">快捷键：<span class="kbd">Enter</span> 发送，<span class="kbd">Shift</span>+<span class="kbd">Enter</span> 换行</div>
+      <label class="switch" title="开启后答案逐字流式返回；关闭则等全部完成后一次返回">
+        <input type="checkbox" id="streamToggle" checked>
+        <span class="txt">流式输出</span>
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </div>
   </div>
 
   <script>
@@ -322,7 +554,8 @@
     const chatEl = document.getElementById('chat');
     const inputEl = document.getElementById('input');
     const sendBtn = document.getElementById('send');
-    const btnAudio = document.getElementById('btnAudio');
+    const btnRecord = document.getElementById('btnRecord');
+    const btnUploadAudio = document.getElementById('btnUploadAudio');
     const audioInput = document.getElementById('audioInput');
     const apiPill = document.getElementById('apiPill');
     const btnClear = document.getElementById('btnClear');
@@ -558,10 +791,87 @@
             <div class="bubble">${escapeHtml(text)}</div>
             <div class="meta">${nowTime()}</div>
           </div>
-          <div class="avatar">我</div>
+          <div class="avatar"><img src="/assets/avatars/user/default.svg" alt="我"></div>
         </div>
       `;
       chatEl.insertAdjacentHTML('beforeend', html);
+      scrollToBottom();
+    }
+
+    // 按录音时长决定语音条宽度（1s 最短，5s 及以上达到最长）
+    function voiceBarWidth(durationSec){
+      const minW = 86, maxW = 232, maxDur = 5;
+      const d = Math.max(0.5, Math.min(Number(durationSec) || 1, maxDur));
+      return Math.round(minW + (maxW - minW) * (d / maxDur));
+    }
+
+    // 读取本地音频时长（秒），失败返回 0
+    function audioDuration(file){
+      return new Promise((resolve) => {
+        try{
+          const url = URL.createObjectURL(file);
+          const a = document.createElement('audio');
+          a.preload = 'metadata';
+          a.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(a.duration || 0); };
+          a.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
+          a.src = url;
+        }catch(e){ resolve(0); }
+      });
+    }
+
+    // 静态声波竖线（高度固定，避免每次重绘跳变）
+    function voiceWaveHtml(){
+      const heights = [9, 15, 6, 16, 11, 13, 7, 15, 10, 12, 6, 14, 8, 12];
+      return heights.map(h => `<i style="height:${h}px"></i>`).join('');
+    }
+
+    // 微信风格语音条：左侧圆形「文」按钮展开转写文字，点击语音条播放原声
+    function addUserVoiceMsg(blob, transcript, durationSec){
+      const audioUrl = URL.createObjectURL(blob);
+      const id = 'voice-' + Math.random().toString(36).slice(2);
+      const width = voiceBarWidth(durationSec);
+      const durText = Math.max(1, Math.round(durationSec)) + '"';
+      const html = `
+        <div class="msg user" id="${id}">
+          <div>
+            <div class="bubble voice-bubble">
+              <div class="voice-bar" style="width:${width}px">
+                <button class="voice-text-btn" title="显示 / 隐藏转写文字">文</button>
+                <span class="voice-wave">${voiceWaveHtml()}</span>
+                <span class="voice-dur">${durText}</span>
+              </div>
+              <div class="voice-transcript" hidden>${escapeHtml(transcript || '')}</div>
+              <audio class="voice-audio" preload="metadata" src="${audioUrl}"></audio>
+            </div>
+            <div class="meta">${nowTime()}</div>
+          </div>
+          <div class="avatar"><img src="/assets/avatars/user/default.svg" alt="我"></div>
+        </div>
+      `;
+      chatEl.insertAdjacentHTML('beforeend', html);
+      const el = document.getElementById(id);
+      const bar = el.querySelector('.voice-bar');
+      const textBtn = el.querySelector('.voice-text-btn');
+      const transcriptEl = el.querySelector('.voice-transcript');
+      const audio = el.querySelector('.voice-audio');
+
+      // 圆形「文」按钮：在语音条下方展开 / 收起转写文字
+      textBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willShow = transcriptEl.hasAttribute('hidden');
+        if(willShow){ transcriptEl.removeAttribute('hidden'); }
+        else { transcriptEl.setAttribute('hidden', ''); }
+        textBtn.classList.toggle('active', willShow);
+        scrollToBottom();
+      });
+      // 点击语音条：播放 / 暂停
+      bar.addEventListener('click', () => {
+        if(audio.paused){ audio.play(); } else { audio.pause(); }
+      });
+      audio.addEventListener('play', () => bar.classList.add('playing'));
+      audio.addEventListener('pause', () => bar.classList.remove('playing'));
+      audio.addEventListener('ended', () => bar.classList.remove('playing'));
+
       scrollToBottom();
     }
 
@@ -572,7 +882,7 @@
             <div class="bubble">${escapeHtml(text)}</div>
             <div class="meta">${formatTime(ts)}</div>
           </div>
-          <div class="avatar">我</div>
+          <div class="avatar"><img src="/assets/avatars/user/default.svg" alt="我"></div>
         </div>
       `;
       chatEl.insertAdjacentHTML('beforeend', html);
@@ -583,7 +893,7 @@
       const id = 'bot-his-' + Math.random().toString(36).slice(2);
       const html = `
         <div class="msg bot" id="${id}">
-          <div class="avatar bot">听书智库</div>
+          <div class="avatar bot"><img src="/assets/avatars/bot/assistant.svg" alt="听书智库"></div>
           <div>
             <div class="bubble"><div class="answer"></div></div>
             <div class="meta">${formatTime(ts)}</div>
@@ -603,7 +913,7 @@
       const id = 'bot-' + Math.random().toString(36).slice(2);
       const html = `
         <div class="msg bot" id="${id}">
-          <div class="avatar bot">听书智库</div>
+          <div class="avatar bot"><img src="/assets/avatars/bot/assistant.svg" alt="听书智库"></div>
           <div style="min-width: 180px;">
             <div class="bubble">
               <span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
@@ -762,12 +1072,12 @@
       }, 1200);
     }
 
-    async function onSend(){
+    async function onSend(skipUserMsg){
       console.log('[perf] A onSend start', performance.now());
       const text = (inputEl.value || '').trim();
       if(!text) return;
       inputEl.value = '';
-      addUserMsg(text);
+      if(!skipUserMsg) addUserMsg(text);
       const botMsgEl = addBotMsgSkeleton();
       sendBtn.disabled = true;
 
@@ -913,7 +1223,8 @@
 
     async function onAudioUpload(file){
       if(!file) return;
-      btnAudio.disabled = true;
+      btnRecord.disabled = true;
+      btnUploadAudio.disabled = true;
       sendBtn.disabled = true;
       // 显示"正在转写"的临时气泡
       const statusMsg = addBotMsgSkeleton();
@@ -931,27 +1242,148 @@
           throw new Error(msg || '音频转写失败');
         }
         const data = await res.json();
-        // 转写完成：移除临时气泡，把转写文本填入输入框，复用 onSend 走常规检索
-        statusMsg.remove();
-        inputEl.value = data.query || '';
-        if(!inputEl.value.trim()){
+        const transcript = (data.query || '').trim();
+        if(!transcript){
           throw new Error('音频转写结果为空，请确认音频内容清晰可辨');
         }
-        onSend();
+        // 转写完成：移除临时气泡，展示语音条（转写文字默认收起），再复用 onSend 发起检索
+        statusMsg.remove();
+        addUserVoiceMsg(file, transcript, await audioDuration(file));
+        inputEl.value = transcript;
+        onSend(true);
       }catch(e){
         bubble.innerHTML = `音频转写失败：${escapeHtml(e.message || e)}`;
         sendBtn.disabled = false;
       }finally{
-        btnAudio.disabled = false;
+        btnRecord.disabled = false;
+        btnUploadAudio.disabled = false;
       }
     }
 
-    btnAudio.addEventListener('click', () => audioInput.click());
+    // ===== 上传音频文件（文件夹按钮）=====
+    btnUploadAudio.addEventListener('click', () => audioInput.click());
     audioInput.addEventListener('change', (e) => {
       const f = e.target.files && e.target.files[0];
       if(f) onAudioUpload(f);
       e.target.value = '';
     });
+
+    // ===== 浏览器录音（点击开始 / 再点停止，微信式）=====
+    let recorder = null;        // 存在即表示正在录音
+    let recChunks = [];
+    let recStream = null;
+    let recStartAt = 0;
+    let recTimer = null;
+
+    function pickRecMime(){
+      if(!window.MediaRecorder) return '';
+      const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+      for(const m of cands){
+        try{ if(MediaRecorder.isTypeSupported(m)) return m; }catch(e){}
+      }
+      return '';
+    }
+    function extFromMime(m){
+      if(!m) return 'webm';
+      if(m.indexOf('webm') >= 0) return 'webm';
+      if(m.indexOf('ogg') >= 0) return 'ogg';
+      if(m.indexOf('mp4') >= 0) return 'm4a';
+      return 'webm';
+    }
+
+    async function toggleRecord(){
+      // 正在录音 -> 停止
+      if(recorder){
+        try{ recorder.stop(); }catch(e){}
+        return;
+      }
+      // 开始录音：申请麦克风权限
+      try{
+        recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }catch(e){
+        alert('无法访问麦克风：' + (e && e.message ? e.message : e));
+        return;
+      }
+      const mime = pickRecMime();
+      try{
+        recorder = mime ? new MediaRecorder(recStream, { mimeType: mime }) : new MediaRecorder(recStream);
+      }catch(e){
+        recorder = new MediaRecorder(recStream);
+      }
+      recChunks = [];
+      recorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) recChunks.push(e.data); };
+      recorder.onstop = onRecordStop;
+      recorder.start();
+      recStartAt = Date.now();
+      btnRecord.classList.add('recording');
+      btnRecord.title = '录音中… 点击结束';
+      recTimer = setInterval(() => {
+        if(recorder) btnRecord.title = `录音中 ${Math.floor((Date.now()-recStartAt)/1000)}s，点击结束`;
+      }, 300);
+      scrollToBottom();
+    }
+
+    function stopRecStream(){
+      if(recStream){ recStream.getTracks().forEach(t => t.stop()); recStream = null; }
+    }
+
+    function onRecordStop(){
+      const duration = Math.max(0.4, (Date.now() - recStartAt) / 1000);
+      if(recTimer){ clearInterval(recTimer); recTimer = null; }
+      btnRecord.classList.remove('recording');
+      btnRecord.title = '点击开始录音，再点一次结束';
+      const type = (recChunks[0] && recChunks[0].type) || 'audio/webm';
+      const blob = new Blob(recChunks, { type });
+      const ext = extFromMime(type);
+      recChunks = [];
+      recorder = null;
+      stopRecStream();
+      if(blob.size < 1200) return;   // 太短（基本是静音/误触），不入库
+      onRecordUpload(blob, duration, ext);
+    }
+
+    async function onRecordUpload(blob, duration, ext){
+      btnRecord.disabled = true;
+      btnUploadAudio.disabled = true;
+      sendBtn.disabled = true;
+      const statusMsg = addBotMsgSkeleton();
+      const bubble = statusMsg.querySelector('.bubble');
+      const typing = statusMsg.querySelector('.typing');
+      if(typing) typing.remove();
+      bubble.textContent = '正在转写录音…';
+      scrollToBottom();
+      try{
+        const fd = new FormData();
+        fd.append('file', blob, `record_${Date.now()}.${ext}`);
+        const res = await fetch(`${API_BASE}/record_audio`, { method:'POST', body:fd });
+        if(!res.ok){
+          const msg = await res.text();
+          throw new Error(msg || '录音转写失败');
+        }
+        const data = await res.json();
+        const transcript = (data.query || '').trim();
+        if(!transcript){ throw new Error('录音转写结果为空，请确认录音清晰'); }
+        statusMsg.remove();
+        addUserVoiceMsg(blob, transcript, duration);
+        inputEl.value = transcript;
+        onSend(true);
+      }catch(e){
+        bubble.innerHTML = `录音转写失败：${escapeHtml(e.message || e)}`;
+        sendBtn.disabled = false;
+      }finally{
+        btnRecord.disabled = false;
+        btnUploadAudio.disabled = false;
+      }
+    }
+
+    btnRecord.addEventListener('click', toggleRecord);
+
+    // textarea 高度自适应（初始与发送按钮同高，最多 120px）
+    function autoGrowInput(){
+      inputEl.style.height = '44px';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    }
+    inputEl.addEventListener('input', autoGrowInput);
 
     sendBtn.addEventListener('click', onSend);
     inputEl.addEventListener('keydown', (e) => {

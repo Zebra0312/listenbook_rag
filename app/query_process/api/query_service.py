@@ -1,11 +1,14 @@
 import asyncio
+import subprocess
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 import shutil
 import uuid
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
@@ -45,6 +48,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# 挂载静态资源目录（头像 / 图标等），前端以 /assets/xxx 访问
+app.mount("/assets", StaticFiles(directory=str(PROJECT_ROOT / "assets")), name="assets")
 
 # 定义接口接收的数据结构
 class QueryRequest(BaseModel):
@@ -140,6 +145,48 @@ def query_audio(file: UploadFile = File(...)):
     if not text.strip():
         raise HTTPException(status_code=422, detail="音频转写结果为空，请确认音频内容清晰可辨")
     return {"query": text, "filename": filename}
+
+# 语音提问（浏览器实时录音）：接收前端 MediaRecorder 录制的音频，统一转 mp3 存档后转写
+# 说明：录音默认落盘到项目 mp3/speak_content/（测试素材目录，已在 .gitignore 中忽略）；
+#      浏览器录制格式通常是 webm/ogg，这里用 ffmpeg 统一转成 mp3（转码失败则保留原格式）。
+@app.post("/record_audio")
+def record_audio(file: UploadFile = File(...)):
+    # 校验扩展名，只接受音频/录音格式
+    filename = file.filename or ""
+    suffix = Path(filename).suffix.lower() or ".webm"
+    if suffix not in (".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac", ".flac"):
+        raise HTTPException(status_code=400, detail="不支持的录音格式（webm/ogg/mp3/wav/m4a/aac/flac）")
+
+    # 落盘目录：项目 mp3/speak_content/
+    save_dir = PROJECT_ROOT / "mp3" / "speak_content"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    raw_path = save_dir / f"speak_{stamp}{suffix}"
+    with raw_path.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+    logger.info(f"收到录音提问：{filename} -> {raw_path}")
+
+    # 导入 asr_utils 会顺带兜底 ffmpeg 的 PATH，随后用 ffmpeg 统一转 mp3 存档
+    from app.lm.asr_utils import transcribe_audio
+    final_path = raw_path
+    if suffix != ".mp3":
+        mp3_path = raw_path.with_suffix(".mp3")
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", str(raw_path), "-ar", "16000", "-ac", "1", str(mp3_path)],
+                check=True, capture_output=True,
+            )
+            raw_path.unlink(missing_ok=True)
+            final_path = mp3_path
+            logger.info(f"录音已转 mp3 存档：{mp3_path.name}")
+        except Exception as e:
+            logger.warning(f"ffmpeg 转 mp3 失败，保留原始格式 {suffix}：{e}")
+
+    # 同步转写（SenseVoice 本地，短音频秒级）
+    text = transcribe_audio(str(final_path))
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="录音转写结果为空，请确认录音清晰、非静音")
+    return {"query": text, "filename": final_path.name, "saved_path": str(final_path)}
 
 # 创建处理sse请求的路径处理函数
 @app.get("/stream/{session_id}")
