@@ -33,6 +33,7 @@ dependencies = [
     # 2026-07-28），百炼 BaiLianMcpServer 只认 2024-11-05，会直接返回 HTTP 500，
     # 导致 node_web_search_mcp 连不上（1.30.0 实测正常）。
     "mcp<2",
+    "funasr>=1.4.15",
 ]
 
 [tool.uv]

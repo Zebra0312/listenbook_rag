@@ -32,6 +32,9 @@ class QueryGraphState(TypedDict):
     rewritten_query: str  # 改写后的问题
     history: list  # 历史对话记录
     is_stream: bool  # 是否流式输出标记
+    audio_url: str  # 语音提问的音频URL（随消息存历史，供刷新后回放；文本提问为空串）
+    audio_text: str  # 语音提问的纯转写文本（上传文件场景 query 带提示词前缀时，用它存历史，避免污染对话）
+    is_chitchat: bool  # 是否命中闲聊分流（与书籍无关的寒暄/闲聊，跳过三路检索，直接闲聊回答）
 
 
 # ========================
@@ -51,7 +54,10 @@ query_graph_default_state: QueryGraphState = {
     "item_names": [],
     "rewritten_query": "",
     "history": [],
-    "is_stream": False
+    "is_stream": False,
+    "audio_url": "",
+    "audio_text": "",
+    "is_chitchat": False
 }
 
 

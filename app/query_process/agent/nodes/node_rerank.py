@@ -65,6 +65,9 @@ def step_1_merge_docs(state):
             "chunk_id": "",
             "url": url,
             "source": "web",
+            # 外部书籍库的封面/书卡图片地址：
+            # 本地切片的图片藏在 text 的 markdown 里，MCP 的则在字段上，这里统一带过去
+            "image_urls": doc.get("image_urls") or [],
         }
         for field in BOOK_META_FIELDS:
             item[field] = ""
@@ -99,6 +102,9 @@ def step_2_rerank_docs(state, doc_items):
                 "url": item["url"],
                 "title": item["title"],
                 "source": item["source"],
+                # 外部书籍库（MCP）的封面/书卡图片地址：必须在重建文档时显式带上，
+                # 否则会被这个字典丢掉 —— 表现为「使用了 MCP 数据却一张图都没有」
+                "image_urls": item.get("image_urls") or [],
             }
             for field in BOOK_META_FIELDS:
                 scored[field] = item.get(field, "")

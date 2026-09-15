@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="用户">
+  <defs>
+    <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1E7D9"/>
+      <stop offset="1" stop-color="#D8C4A9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#userGrad)"/>
+  <g fill="#8A6B4D">
+    <circle cx="32" cy="24" r="10.5"/>
+    <path d="M32 37.5c-9.6 0-17.4 6.7-17.4 14.9V64h34.8V52.4c0-8.2-7.8-14.9-17.4-14.9z"/>
+  </g>
+</svg>

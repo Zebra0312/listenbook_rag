@@ -6,8 +6,8 @@ from app.utils.task_utils import add_running_task, add_done_task
 
 """
 1.  **接收状态**: 获取 `local_file_path`。
-2.  **判断类型**: 检查文件后缀是 `.pdf` 还是 `.md`。
-3.  **设置标记**: 更新 state 中的 `is_pdf_read_enabled` 或 `is_md_read_enabled`，供主图路由使用。
+2.  **判断类型**: 检查文件后缀是 `.pdf`、`.md` 还是 `.mp3`。
+3.  **设置标记**: 更新 state 中的 `is_pdf_read_enabled` / `is_md_read_enabled` / `is_mp3_read_enabled`，供主图路由使用。
 4.  **提取标题**: 从文件名中提取 `file_title`，后续作为元数据。
 """
 
@@ -43,8 +43,12 @@ def node_entry(state: ImportGraphState) -> ImportGraphState:
     elif local_file_path.endswith(".md"):
         state["is_md_read_enabled"] = True
         state["md_path"] = local_file_path
+    elif local_file_path.endswith(".mp3"):
+        # 音频文件：走转写路径（转写为纯文本后进入文档切分，后续流程复用不变）
+        state["is_mp3_read_enabled"] = True
+        state["mp3_path"] = local_file_path
     else:
-        # 说明文件不是pdf或者md
+        # 说明文件不是pdf、md或mp3
         logger.warning(f"当前上传文件路径{local_file_path},文件格式不是系统支持的格式")
         # 记录节点的状态为已完成
         add_done_task(state["task_id"], "node_entry")
@@ -87,5 +91,12 @@ if __name__ == '__main__':
         local_file_path="红楼梦_作者介绍.pdf"
     )
     print(node_entry(test_state3))
+
+    # 测试4: MP3文件
+    test_state4 = create_default_state(
+        task_id="test_task_004",
+        local_file_path="三体_有声书.mp3"
+    )
+    print(node_entry(test_state4))
 
     logger.info("===== 结束node_entry节点单元测试 =====")

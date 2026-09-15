@@ -27,6 +27,47 @@ def _book_name_part(name: str) -> str:
             return text.partition(separator)[0].strip()
     return text
 
+# 本轮问题里出现这些词，才允许沿用历史会话里的书名（指代消解的正常场景）。
+# 注意：这里刻意不收单字「本」——「推荐几本小说」「买一本」里的「本」是量词，
+# 会把它误判成指代词，反而把历史书名保留下来；因此只保留「本书 / 这本 / 那本」这类组合。
+REFER_WORDS = (
+    "它", "他", "她", "这", "那", "该", "此",
+    "刚才", "上面", "前面", "之前", "上述",
+    "本书", "本作", "这本", "那本", "该本",
+    "另一本", "前一本", "前面那本",
+)
+
+
+def _strip_history_leaked_names(query, names):
+    """
+    剔掉从历史里继承来、本轮问题根本没提的书名。
+
+    背景：本轮用户只发了「你好」，模型却返回了上一轮的 ['斗破苍穹', '斗罗大陆']，
+    于是检索去查这两本书，答案变成两本书的比较，与用户问题完全无关。
+    提示词已明确禁止该行为，这里再加一道代码闸门兜底（模型不总听话）。
+
+    判定：只有当本轮问题里出现了书名，或出现了明确的指代词
+    （它 / 这 / 那 / 本 / 刚才 / 上面 …）时，才允许沿用；否则一律丢弃。
+
+    :param query: 本轮用户原始问题
+    :param names: 模型返回的 item_names
+    :return: 过滤后的 item_names
+    """
+    if not names:
+        return []
+    q = str(query or "")
+    has_refer = any(w in q for w in REFER_WORDS)
+    kept = []
+    for n in names:
+        if has_refer:
+            kept.append(n)
+            continue
+        book = _book_name_part(str(n))
+        # 书名或其条目名在本轮问题里字面出现 → 说明是用户自己提的，保留
+        if book and (book in q or str(n) in q):
+            kept.append(n)
+    return kept
+
 @step_log("step_3_extract_info")
 def step_3_extract_info(original_query, history_list):
     """
@@ -64,10 +105,24 @@ def step_3_extract_info(original_query, history_list):
         # 判断结果中是否包含rewritten_query
         if "rewritten_query" not in extract_result:
             extract_result["rewritten_query"] = original_query
+        # 闸门：剔掉从历史继承来、本轮问题根本没提的书名（模型不总听提示词的话）
+        raw_names = extract_result.get("item_names") or []
+        kept = _strip_history_leaked_names(original_query, raw_names)
+        if len(kept) != len(raw_names):
+            logger.info(
+                f"本轮问题未提及书籍（{original_query!r}），"
+                f"已丢弃从历史继承的书名：{raw_names} -> {kept}"
+            )
+        extract_result["item_names"] = kept
+        # is_chitchat 兜底：模型漏返回时默认 False；但只要有书名，就绝不可能是纯闲聊
+        if "is_chitchat" not in extract_result:
+            extract_result["is_chitchat"] = False
+        if kept:
+            extract_result["is_chitchat"] = False
         return extract_result
     except Exception as e:
         logger.error(f"提取书籍主体并且重写用户问题时出现了异常：{e}")
-        return {"item_names": [], "rewritten_query": original_query}
+        return {"item_names": [], "rewritten_query": original_query, "is_chitchat": False}
 
 
 @step_log("step_4_vectorize_and_query")
@@ -222,7 +277,7 @@ def step_5_align_item_names(query_results):
 
 
 @step_log("step_6_check_confirmation")
-def step_6_check_confirmation(state, align_result, session_id, history_list, rewritten_query):
+def step_6_check_confirmation(state, align_result, session_id, history_list, rewritten_query, extracted_names=None):
     # 分别获取已确认和待确认的item_name的列表
     confirmed = align_result.get("confirmed_item_names", [])
     options = align_result.get("options", [])
@@ -246,22 +301,30 @@ def step_6_check_confirmation(state, align_result, session_id, history_list, rew
         if state.get("answer"):
             del state["answer"]
         return state
-    # 分支2：有待确认的item_name
+    # 分支2/3：本地知识库没有精确命中（有 0.6~0.85 的近似候选 options，或连候选都没有）
+    #
+    # 【重要】这里**不写 answer**，也不做反问澄清。原因：
+    #   1. 反问会让"库外书籍"永远卡在澄清循环里——例如问《斗罗大陆》，库里只有不相干的
+    #      近似项，就会一直重复"您想查询以下哪本书：XXX？"；
+    #   2. 「本地库没有」不等于「这本书不存在」，此时正该让书籍查询 MCP 去查库外书籍，
+    #      最终由 node_rerank 统一打分判定，而不是在入口就把流程掐断。
+    # 只要往 state 写 answer，main_graph.condition_fun 就会直接收尾，三路检索全都跑不到。
     if options:
-        # 获取并拼接待确认的item_name
-        options_str = "、".join(options)
-        # 拼接待确认信息
-        answer = f"您想查询以下哪本书：{options_str}？请补充一下书名或作者。"
-        # 更新状态
-        state["item_names"] = []
-        state["answer"] = answer
-        return state
-    # 分支3：既没有已确认也没有待确认
-    # 拼接兜底信息
-    answer = "抱歉，未找到相关书籍，请提供书名或作者，以便我为您查询。"
-    # 更新状态
-    state["item_names"] = []
-    state["answer"] = answer
+        logger.info(
+            f"库内无精确匹配，近似候选={options}，不做反问，改由三路检索 + 重排判定"
+        )
+    else:
+        logger.info("库内无任何候选，不做反问，改由三路检索 + 重排判定")
+    # 保留抽取到的书名作为本地过滤条件：
+    #   ① 库里没有这本书时，Milvus 过滤结果自然为空（不报错），不会把噪声带进重排；
+    #   ② 书籍查询 MCP 能从 item_names 拿到"干净的书名"，而不是整句问话——
+    #      实测整句「我要查询斗罗大陆」会让工具命中《斗破苍穹》，而「斗罗大陆」精准命中。
+    state["item_names"] = [n for n in (extracted_names or []) if n]
+    # 改写后的问题：MCP 优先用书名，取不到书名时才退化到它
+    state["rewritten_query"] = rewritten_query or state.get("original_query") or ""
+    # 清掉可能残留的 answer，避免被短路
+    if state.get("answer"):
+        del state["answer"]
     return state
 
 
@@ -277,7 +340,8 @@ def step_7_write_history(state, session_id, history_list, rewritten_query, messa
         text=state["original_query"],  # 消息内容：用户原始查询
         rewritten_query=rewritten_query,  # 补充step3改写后的完整问题
         item_names=state.get("item_names", []),  # 补充关联的书籍主体列表
-        message_id=message_id  # 消息ID，指定更新已存在的用户消息（而非新增）
+        message_id=message_id,  # 消息ID，指定更新已存在的用户消息（而非新增）
+        audio_url=state.get("audio_url", "")  # 语音音频URL（update 为 $set 覆盖，必须一并带上）
     )
     return state
 
@@ -304,12 +368,32 @@ def node_item_name_confirm(state : QueryGraphState):
     # 保存历史记录到状态中
     state["history"] = history_list
     # 步骤2：将当前用户的问题保存到MongoDB中，返回的message_id是添加的数据的唯一标识
-    message_id = save_chat_message(session_id, "user", original_query, "", [])
+    # audio_url：语音提问时带音频地址（供刷新后回放），文本提问为空串
+    # audio_text：语音提问的纯转写文本。上传文件场景 original_query 带「判断出处」提示词前缀，
+    # 历史里应存用户真实说的话（纯文本），避免提示词污染对话上下文（防幻觉）。
+    user_text = state.get("audio_text") or original_query
+    message_id = save_chat_message(session_id, "user", user_text, "", [], audio_url=state.get("audio_url", ""))
     # 步骤3: 从用户的问题中提取item_names并重写用户问题
     extract_result = step_3_extract_info(original_query,history_list)
     # 分别获取提取的item_names和重写之后的问题rewritten_query
     item_names = extract_result.get("item_names")
     rewritten_query = extract_result.get("rewritten_query")
+    is_chitchat = extract_result.get("is_chitchat", False)
+
+    # 闲聊分流（2026-09-15，方案 C）：
+    # 本轮被判定为「与书籍无关的寒暄/闲聊」且没抽到任何书名时，不检索、不调 MCP，
+    # 直接交由 node_answer_output 用闲聊提示词生成回答。
+    # 这里只打标记、**不写 answer**——若在这里生成 answer，会被 step_7 写一次 assistant，
+    # 到 answer_output 又写一次，造成历史重复。
+    if is_chitchat and not item_names:
+        logger.info(f"识别为闲聊/寒暄，跳过检索，交由答案节点闲聊回答：{original_query!r}")
+        state["is_chitchat"] = True
+        state["item_names"] = []
+        state["rewritten_query"] = original_query
+        state = step_7_write_history(state, session_id, history_list, rewritten_query, message_id)
+        add_done_task(state["session_id"], "node_item_name_confirm", state["is_stream"])
+        return state
+
     # 更新状态中的rewritten_query
     state["rewritten_query"] = rewritten_query
 
@@ -324,7 +408,7 @@ def node_item_name_confirm(state : QueryGraphState):
         logger.info("Node: 未提取到书籍名，跳过向量检索")
 
     # 步骤6：检查确认状态
-    state = step_6_check_confirmation(state, align_result, session_id, history_list, rewritten_query)
+    state = step_6_check_confirmation(state, align_result, session_id, history_list, rewritten_query, item_names)
     # 步骤7：写入最终历史
     final_state = step_7_write_history(state, session_id, history_list, rewritten_query, message_id)
 
