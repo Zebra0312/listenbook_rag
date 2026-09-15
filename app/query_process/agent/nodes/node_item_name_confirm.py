@@ -369,7 +369,10 @@ def node_item_name_confirm(state : QueryGraphState):
     state["history"] = history_list
     # 步骤2：将当前用户的问题保存到MongoDB中，返回的message_id是添加的数据的唯一标识
     # audio_url：语音提问时带音频地址（供刷新后回放），文本提问为空串
-    message_id = save_chat_message(session_id, "user", original_query, "", [], audio_url=state.get("audio_url", ""))
+    # audio_text：语音提问的纯转写文本。上传文件场景 original_query 带「判断出处」提示词前缀，
+    # 历史里应存用户真实说的话（纯文本），避免提示词污染对话上下文（防幻觉）。
+    user_text = state.get("audio_text") or original_query
+    message_id = save_chat_message(session_id, "user", user_text, "", [], audio_url=state.get("audio_url", ""))
     # 步骤3: 从用户的问题中提取item_names并重写用户问题
     extract_result = step_3_extract_info(original_query,history_list)
     # 分别获取提取的item_names和重写之后的问题rewritten_query

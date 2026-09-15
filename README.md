@@ -284,10 +284,10 @@ flowchart TD
 | 2    | node_pdf_to_md             | PDF 转 Markdown | MinerU 上传解析、轮询、解压取 md                             |
 | 3    | node_md_img                | 图片处理        | Qwen3-VL 摘要 + 上传 MinIO + 替换 Markdown 链接              |
 | 4    | node_mp3_to_text           | 音频转文本      | 本地 SenseVoice 转写 → 写入 `md_content` → 直连切分（音频无图，跳过 `node_md_img`） |
-| 4    | node_document_split        | 文档切分        | 标题初切 + 递归二次切分 + 元数据注入 → `chunks`（备份 JSON） |
-| 5    | node_item_name_recognition | 书籍主体识别    | LLM 识别书名/作者，回填书籍域元数据，写入 `listenbook_item_names` |
-| 6    | node_bge_embedding         | 向量生成        | BGE-M3 批量生成稠密 + 稀疏向量                               |
-| 7    | node_import_milvus         | 导入向量库      | 建 `listenbook_chunks`、按 `item_name` 幂等删旧、插入并回填 `chunk_id` |
+| 5    | node_document_split        | 文档切分        | 标题初切 + 递归二次切分 + 元数据注入 → `chunks`（备份 JSON） |
+| 6    | node_item_name_recognition | 书籍主体识别    | LLM 识别书名/作者，回填书籍域元数据，写入 `listenbook_item_names` |
+| 7    | node_bge_embedding         | 向量生成        | BGE-M3 批量生成稠密 + 稀疏向量                               |
+| 8    | node_import_milvus         | 导入向量库      | 建 `listenbook_chunks`、按 `item_name` 幂等删旧、插入并回填 `chunk_id` |
 
 ## 检索与问答管线（Query Pipeline）
 
@@ -303,7 +303,7 @@ flowchart TD
     R0 --> R1
 
     R1["node_item_name_confirm · 书籍主体确认<br/>① 读历史并保存用户消息<br/>② LLM 提取书名/作者 + 改写问题<br/>③ 向量对齐 + 书名包含式对齐<br/>④ 评分分级"]:::gate
-    R1 -->|"answer 为空（已确认主体）"| R2
+    R1 -->|"answer 为空 → 三路并行"| R2
     R1 -->|"answer 有值（兜底）或命中闲聊分流"| R7
 
     R2["条件边：三路并行召回<br/>（本地库未命中 → MCP 兜底 + 重排判定）"]:::done
@@ -315,7 +315,7 @@ flowchart TD
 
     R3A --> R5
     R3B --> R5
-    R3C --> R5
+    R3C -->|"web 结果透传，重排阶段合并（不参与 RRF）"| R5
 
     R5["node_rrf · RRF 融合<br/>向量 + HyDE 两路倒数排名融合 → Top-10"]:::done --> R6["node_rerank · 重排序<br/>BGE-Reranker-large 精排 + 断崖截断"]:::done
     R6 --> R7["node_answer_output · 答案生成<br/>Prompt 组装 + 图片白名单 + SSE 推送"]:::done
@@ -325,7 +325,7 @@ flowchart TD
 | #    | 节点                       | 职责         | 关键动作                                                     |
 | 0    | node_query_intent          | 输入意图识别 | 音频提问先本地转写（覆盖 `original_query`）再进检索；文本提问直接透传 |
 | ---- | -------------------------- | ------------ | ------------------------------------------------------------ |
-| 1    | node_item_name_confirm     | 书籍主体确认 | 历史记录 → LLM 提取书名/作者 + 改写 → 向量对齐 → 评分分级（确认 / 候选 / 追问） |
+| 1    | node_item_name_confirm     | 书籍主体确认 | 历史记录 → LLM 提取书名/作者 + 改写 → 向量对齐 → 评分分级（≥0.85 确认，其余交三路检索裁决） |
 | 2    | node_search_embedding      | 向量检索     | BGE-M3 混合向量检索 + 按 `item_name` 过滤                    |
 | 3    | node_search_embedding_hyde | HyDE 检索    | 生成假设文档 → 组合向量检索，提升模糊问题召回                |
 | 4    | node_web_search_mcp        | 书籍查询     | MCP 协议调用百炼书旗书籍查询，补充书籍元信息（失败自动降级）      |
@@ -559,6 +559,40 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 - [~] 多模态检索：书籍封面已随 MCP 结果展示（含书名一致性闸门），尚未与内容做联合检索
 
 ## 附录：节点分步说明
+
+### 图编排总览（节点与节点间的关系）
+
+两张图都是 LangGraph `StateGraph`：节点靠**边（edge）**串联，条件分支由 `add_conditional_edges` 的路由函数（`condition_fun`）根据 state 决定下一节点。以下边结构与 `main_graph.py` 逐行一致。
+
+**导入侧**（入口 `node_entry`，共 8 节点）：
+
+| 当前节点 | 下一节点 |
+| --- | --- |
+| `node_entry` | 条件分支：`.md` → `node_md_img`；`.pdf` → `node_pdf_to_md`；`.mp3` → `node_mp3_to_text`；其他 → END |
+| `node_pdf_to_md` | `node_md_img` |
+| `node_md_img` | `node_document_split` |
+| `node_mp3_to_text` | `node_document_split`（音频无图，跳过 `node_md_img`） |
+| `node_document_split` | `node_item_name_recognition` |
+| `node_item_name_recognition` | `node_bge_embedding` |
+| `node_bge_embedding` | `node_import_milvus` |
+| `node_import_milvus` | END |
+
+三条分支（md / pdf / mp3）在 `node_document_split` 汇聚，之后的「主体识别 → 向量化 → 入库」为固定直线。
+
+**检索侧**（入口 `node_query_intent`，共 8 节点）：
+
+| 当前节点 | 下一节点 |
+| --- | --- |
+| `node_query_intent` | `node_item_name_confirm` |
+| `node_item_name_confirm` | 条件分支：`answer` 有值 或 `is_chitchat` → `node_answer_output`；否则三路并行 |
+| `node_search_embedding` | `node_rrf` |
+| `node_search_embedding_hyde` | `node_rrf` |
+| `node_web_search_mcp` | `node_rrf`（其结果**不参与 RRF**，到 `node_rerank` 才合并） |
+| `node_rrf` | `node_rerank` |
+| `node_rerank` | `node_answer_output` |
+| `node_answer_output` | END |
+
+三路召回（向量检索 / HyDE / 书籍查询 MCP）并行执行后汇聚到 `node_rrf`；但 `node_rrf` 只融合「向量检索 + HyDE」两路，`node_web_search_mcp` 的结果以 `source="web"` 在 `node_rerank` 的合并阶段才并入候选池。
 
 ### 导入模块
 

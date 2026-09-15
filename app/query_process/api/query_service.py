@@ -58,6 +58,7 @@ class QueryRequest(BaseModel):
     session_id: str = Field(None, description="会话ID")
     is_stream: bool = Field(False, description="是否流式返回")
     audio_url: str = Field(None, description="语音提问的音频URL（可选，随消息存档供刷新后回放）")
+    audio_text: str = Field(None, description="语音提问的纯转写文本（可选；上传文件场景 query 带提示词时用它存历史，避免污染对话）")
 
 # 访问query.html
 @app.get("/query.html")
@@ -70,13 +71,14 @@ def query_page():
     return FileResponse(str(query_file_path))
 
 # 创建后台任务，通过图对象处理以后的问题query
-def run_query_graph(session_id: str, user_query: str, is_stream: bool = True, audio_url: str = ""):
+def run_query_graph(session_id: str, user_query: str, is_stream: bool = True, audio_url: str = "", audio_text: str = ""):
     # 创建初始化状态（audio_url 随状态流转，最终写进历史记录，供刷新后回放语音）
     init_state = create_query_default_state(
         session_id=session_id,
         original_query=user_query,
         is_stream=is_stream,
         audio_url=audio_url or "",
+        audio_text=audio_text or "",
     )
     try:
         # 执行图对象
@@ -113,13 +115,13 @@ async def query(background_tasks: BackgroundTasks, request: QueryRequest):
     # 判断是否为流式调用
     if is_stream:
         # 执行后台任务
-        background_tasks.add_task(run_query_graph, session_id, user_query, is_stream, request.audio_url)
+        background_tasks.add_task(run_query_graph, session_id, user_query, is_stream, request.audio_url, request.audio_text)
         return {
             "message": "结果正在处理中...",
             "session_id": session_id
         }
     else:
-        run_query_graph(session_id, user_query, is_stream, request.audio_url)
+        run_query_graph(session_id, user_query, is_stream, request.audio_url, request.audio_text)
         answer = get_task_result(session_id, "answer", "")
         return {
             "message": "处理完成！",

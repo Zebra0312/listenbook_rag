@@ -719,8 +719,17 @@
     // 如需调整话术，改这一处即可。
     const UPLOAD_FILE_PROMPT = '请判断以下内容出自哪本书，并简要介绍这本书：\n\n';
 
+    // 语音条回显的应是「用户真实说的话」，而非拼给大模型的提示词前缀；
+    // 历史里曾把 UPLOAD_FILE_PROMPT 一并存进 user 文本，这里剥掉它再展示。
+    function stripUploadPrompt(text){
+      if(typeof text !== 'string' || !text) return text || '';
+      if(text.startsWith(UPLOAD_FILE_PROMPT)) return text.slice(UPLOAD_FILE_PROMPT.length);
+      return text;
+    }
+
     // 本次待提交的语音音频URL（录音/上传文件转写后设置，submitQuery 读取一次后清空）
     let pendingAudioUrl = '';
+    let pendingAudioText = '';   // 语音的纯转写文本（上传文件场景用于存历史，避免提示词污染）
     const apiPill = document.getElementById('apiPill');
     const btnClear = document.getElementById('btnClear');
     const streamToggle = document.getElementById('streamToggle');
@@ -1024,7 +1033,7 @@
       });
     }
 
-    // 声波竖线：数量按条形可用宽度自适应；高度从左到右递增（左矮右高）。
+    // 声波竖线：数量按条形可用宽度自适应；高度从左到右递减（左高右矮：粗的在左、短的在右）。
     // 用户头像在右侧 = 声源在右，视觉上"从右往左"扩散衰减；竖线整体贴右排列。
     function voiceWaveHtml(width){
       const avail = Math.max(18, (Number(width) || 120) - 56);   // 扣掉「文」按钮 + 时长 + 间距
@@ -1032,7 +1041,7 @@
       let out = '';
       for(let i = 0; i < count; i++){
         const t = count > 1 ? i / (count - 1) : 1;
-        const h = Math.round(5 + t * 7);                          // 5px（远）→ 12px（近头像）
+        const h = Math.round(12 - t * 7);                          // 12px（左，粗）→ 5px（右，短）
         out += `<i style="height:${h}px"></i>`;
       }
       return out;
@@ -1041,6 +1050,7 @@
     // 微信风格语音条：左侧圆形「文」按钮展开转写文字，点击语音条播放原声
     // audioUrl：持久地址（MinIO）；durationSec 为 0 时（历史恢复）会从音频元数据异步回填
     function addUserVoiceMsg(audioUrl, transcript, durationSec, ts){
+      transcript = stripUploadPrompt(transcript);
       const id = 'voice-' + Math.random().toString(36).slice(2);
       const width = durationSec ? voiceBarWidth(durationSec) : 132;
       const durText = durationSec ? (Math.max(1, Math.round(durationSec)) + '"') : '…';
@@ -1089,7 +1099,6 @@
         if(willShow){ transcriptEl.removeAttribute('hidden'); }
         else { transcriptEl.setAttribute('hidden', ''); }
         textBtn.classList.toggle('active', willShow);
-        scrollToBottom();
       });
       // 点击语音条：播放 / 暂停
       bar.addEventListener('click', () => {
@@ -1464,6 +1473,7 @@
       sessionId = id;
       localStorage.setItem('kb_session_id', sessionId);
       pendingAudioUrl = '';
+      pendingAudioText = '';
       sendBtn.disabled = false;
       if(isNarrow()) appEl.classList.add('nav-hidden');
       await loadHistory();
@@ -1477,6 +1487,7 @@
       sessionId = newSessionId();
       localStorage.setItem('kb_session_id', sessionId);
       pendingAudioUrl = '';
+      pendingAudioText = '';
       clearMessages();
       inputEl.value = '';
       sendBtn.disabled = false;
@@ -1536,7 +1547,9 @@
       const isStream = streamToggle.checked;
       // 语音提问的音频URL只生效一次：取出后立即清空
       const audioRef = pendingAudioUrl || '';
+      const audioText = pendingAudioText || '';
       pendingAudioUrl = '';
+      pendingAudioText = '';
       const res = await fetch(`${API_BASE}/query`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
@@ -1544,7 +1557,8 @@
           query: text,
           session_id: sessionId,
           is_stream: isStream,
-          audio_url: audioRef
+          audio_url: audioRef,
+          audio_text: audioText
         })
       });
       if(!res.ok){
@@ -1764,6 +1778,7 @@
         addUserVoiceMsg(upAudioUrl, transcript, await audioDuration(file));
         pendingAudioUrl = data.audio_url || '';
         // 上传文件：默认带上「判断出处 + 简介该书」的提问，拼在转写文本前面
+        pendingAudioText = transcript;
         inputEl.value = UPLOAD_FILE_PROMPT + transcript;
         onSend(true);
       }catch(e){
