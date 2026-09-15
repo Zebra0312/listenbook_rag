@@ -89,10 +89,11 @@
       box-shadow:var(--shadow-md);
       overflow:hidden;
       display:flex;
-      flex-direction:row;   /* 左侧会话栏 + 右侧主区 */
+      flex-direction:column;   /* 顶部导航栏 + 下方（会话栏 + 主区） */
       position:relative;
     }
     /* ---------- 左侧会话栏 ---------- */
+    .body{ flex:1; min-height:0; display:flex; flex-direction:row; }
     .sidebar{
       flex:0 0 236px;
       width:236px;
@@ -104,11 +105,12 @@
         linear-gradient(180deg, var(--paper-100), var(--paper-50));
       border-right:1px solid var(--wood-200);
       overflow:hidden;
+      transition: width .3s cubic-bezier(.4,0,.2,1), flex-basis .3s cubic-bezier(.4,0,.2,1), padding-left .3s cubic-bezier(.4,0,.2,1), padding-right .3s cubic-bezier(.4,0,.2,1);
     }
-    .app.nav-hidden .sidebar{ display:none; }
+    .app.nav-hidden .sidebar{ width:0; flex-basis:0; padding-left:0; padding-right:0; border-right:0; }
     .newchat{
       display:flex; align-items:center; justify-content:center; gap:7px;
-      width:100%; padding:9px 10px; margin-bottom:6px;
+      width:100%; padding:9px 10px; margin-bottom:6px; white-space:nowrap;
       border:none; border-radius:10px; cursor:pointer;
       font-size:12.5px; font-family:inherit; color:oklch(97% 0.02 85);
       background:linear-gradient(135deg, var(--amber-500), var(--wood-500));
@@ -157,6 +159,7 @@
     /* 窄屏：会话栏改为覆盖式抽屉，避免挤压对话区 */
     @media (max-width: 860px){
       .app{ max-width:100%; }
+      .body{ position:relative; }
       .sidebar{ position:absolute; left:0; top:0; bottom:0; z-index:40; max-width:78%;
                 box-shadow:var(--shadow-md); }
     }
@@ -331,6 +334,7 @@
     }
     .src-list::-webkit-scrollbar{width:5px;}
     .src-list::-webkit-scrollbar-thumb{background:var(--wood-200);border-radius:3px;}
+    .src-list::-webkit-scrollbar-thumb:hover{background:var(--wood-500);}
     .src{
       display:flex;align-items:flex-start;gap:7px;
       padding:4px 6px;border-radius:7px;
@@ -640,21 +644,19 @@
       background:var(--paper-50);
       color:var(--ink-700);
     }
+    /* ===== 滚动条（木纹/图书风格，全局统一美化） ===== */
+    ::-webkit-scrollbar{ width:8px; height:8px; }
+    ::-webkit-scrollbar-track{ background:transparent; }
+    ::-webkit-scrollbar-thumb{ background:var(--wood-200); border-radius:4px; }
+    ::-webkit-scrollbar-thumb:hover{ background:var(--wood-500); }
+    ::-webkit-scrollbar-corner{ background:transparent; }
+    /* Firefox 滚动条（thin + 木色滑块） */
+    *{ scrollbar-width:thin; scrollbar-color:var(--wood-200) transparent; }
   </style>
 
 </head>
 <body>
   <div class="app" id="app">
-    <aside class="sidebar" id="sidebar">
-      <button class="newchat" id="btnNewChat" type="button" title="新建一个空会话">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-        <span>新建对话</span>
-      </button>
-      <div class="sess-head"><span>最近对话</span><span class="sess-count" id="sessCount"></span></div>
-      <div class="sess-list" id="sessList"></div>
-      <div class="sess-empty" id="sessEmpty">还没有历史对话</div>
-    </aside>
-    <div class="main">
     <div class="topbar">
       <button class="navtoggle" id="btnToggleNav" type="button" title="收起 / 展开会话栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
       <div class="brand">
@@ -669,6 +671,17 @@
         <button class="btn" id="btnClear">清空对话</button>
       </div>
     </div>
+    <div class="body">
+    <aside class="sidebar" id="sidebar">
+      <button class="newchat" id="btnNewChat" type="button" title="新建一个空会话">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        <span>新建对话</span>
+      </button>
+      <div class="sess-head"><span>最近对话</span><span class="sess-count" id="sessCount"></span></div>
+      <div class="sess-list" id="sessList"></div>
+      <div class="sess-empty" id="sessEmpty">还没有历史对话</div>
+    </aside>
+    <div class="main">
 
     <div class="chat" id="chat">
       <div class="dayline">今天</div>
@@ -695,6 +708,7 @@
         <span class="txt">流式输出</span>
         <span class="track"><span class="thumb"></span></span>
       </label>
+    </div>
     </div>
     </div>
   </div>

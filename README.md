@@ -95,23 +95,25 @@ listenbook_rag 用 RAG 的思路解决这个问题——**先检索、再生成*
 
 ## 项目亮点
 
-### 亮点一：外部书籍库「只增强、不夺权」的三路召回
+> 以下亮点聚焦**「相对原始 RAG 模板的功能层面提升」**——在不改动模板主干的前提下新增 / 增强的能力，按「离功能越近越靠前」排列。
 
-本地向量检索、HyDE 假设文档检索、书籍查询 MCP 三路并行，但**融合与裁决权始终留在本地**：
+### 亮点一：MP3 语音识别「零侵入」接入
 
-- **RRF 只融本地两路**（`node_rrf.py` 的 `source_weights` 仅含「向量检索」与「HyDE 检索」，`k=60`、截断 Top-10）——外部结果不参与倒数排名融合，避免外部排序污染本地打分；
-- 外部结果在重排阶段以 `source="web"` 合入候选池，与本地切片一起交给**本地 BGE-Reranker-large** 打分；
-- 最终是否保留、保留几条，由**断崖检测**统一裁决（`RERANK_GAP_ABS=2` / `RERANK_GAP_RATIO=0.5`，上限 10 / 下限 1）。
-
-效果：本地知识库命中时答案以本地资料为准；本地没有这本书时，外部书籍库补上答案，并且同样出现在「参考来源」卡片里并标注为 MCP —— 用户能一眼看出这次回答的信息来自哪里。
-
-### 亮点二：语音链路「零侵入」接入
-
-新增语音能力**没有改动任何一条既有主干**：
+模板原本只支持 PDF / Markdown 两种输入，本项目**新增了第三类输入 MP3**，且没有改动任何一条既有主干：
 
 - **导入侧**：`node_mp3_to_text` 把转写文本写入 `md_content` 后直接连到 `node_document_split`。因为切分节点只读 `md_content`，**切分之后的全部环节（主体识别 → 元数据回填 → 向量化 → 入库）零改动**；
 - **检索侧**：`node_query_intent` 只做一件事——识别到输入是音频就转写并覆盖 `original_query`，**后续检索流程完全复用**；
 - **转写工具**：`app/lm/asr_utils.py` 是本地单例封装（FunASR SenseVoice-Small + FSMN-VAD，自带长音频切分与标点规整），不依赖外部 API。CPU 环境实测：一段中文语音转写 48 字全部正确，RTF ≈ 0.03（约 30 倍实时）。
+
+### 亮点二：闲聊分流模块（新增）
+
+模板遇到「你好」「谢谢」这类寒暄，仍会强行走检索链路（甚至被拿去查一本叫《你好》的书）。本项目新增一条**闲聊分流**：
+
+- `node_item_name_confirm` 提取书名时让 LLM 顺带返回 `is_chitchat`（本轮是否属于与书籍无关的寒暄 / 闲聊）；
+- 命中且无书名时**不检索、不调 MCP**，只打标记；`condition_fun` 见标记就收尾，不再进三路召回；
+- `node_answer_output` 用 `prompts/chitchat.prompt` 生成自然回复（含历史，并把话题引回书籍）。
+
+效果：发「你好」得到问候回应，既不会被拿去查一本同名小说，也不会串到上一轮聊过的书名。
 
 ### 亮点三：面向真实调用的三道「防污染」防线
 
@@ -124,6 +126,16 @@ listenbook_rag 用 RAG 的思路解决这个问题——**先检索、再生成*
 | **无上下文不生成** | 检索不到内容时模型凭空编造 | `node_answer_output` 判断「无已有答案且无参考文档」时直接落兜底话术，**不调用大模型** |
 
 此外，跨层数据（Milvus / MCP / LLM 返回）的字段类型一律不可信：统一用 `_s()` 收口后再 `.strip()`，避免 `'int' object has no attribute 'strip'` 这类只在特定数据下才暴露的崩溃。
+
+### 亮点四：外部书籍库「只增强、不夺权」的三路召回
+
+本地向量检索、HyDE 假设文档检索、书籍查询 MCP 三路并行，但**融合与裁决权始终留在本地**：
+
+- **RRF 只融本地两路**（`node_rrf.py` 的 `source_weights` 仅含「向量检索」与「HyDE 检索」，`k=60`、截断 Top-10）——外部结果不参与倒数排名融合，避免外部排序污染本地打分；
+- 外部结果在重排阶段以 `source="web"` 合入候选池，与本地切片一起交给**本地 BGE-Reranker-large** 打分；
+- 最终是否保留、保留几条，由**断崖检测**统一裁决（`RERANK_GAP_ABS=2` / `RERANK_GAP_RATIO=0.5`，上限 10 / 下限 1）。
+
+效果：本地知识库命中时答案以本地资料为准；本地没有这本书时，外部书籍库补上答案，并且同样出现在「参考来源」卡片里并标注为 MCP —— 用户能一眼看出这次回答的信息来自哪里。
 
 ## 核心特性
 
@@ -598,6 +610,8 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 1. node_entry — 入口节点
 
+> **职责**：识别文件类型（.pdf / .md / .mp3），设置路由标记并提取文件名。
+
 1. 接收状态，获取 `local_file_path`（为空则告警并返回）；
 2. 判断文件类型：`.pdf` / `.md` / `.mp3` / 其他不支持格式；
 3. 设置路由标记并记录路径：`is_pdf_read_enabled` / `is_md_read_enabled` / `is_mp3_read_enabled`，对应写入 `pdf_path` / `md_path` / `mp3_path`；
@@ -605,11 +619,15 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 2. node_pdf_to_md — PDF 转 Markdown
 
+> **职责**：调用 MinerU 把 PDF 解析为 Markdown，更新 md_path / md_content。
+
 1. **路径校验** — `pdf_path`、`local_dir`（为空回退到 `output/`，不存在则创建）；
 2. **MinerU 解析** — 请求上传链接（请求体带 `model_version: "vlm"`）→ 上传 PDF → 轮询解析结果（间隔 3s、最长 600s）；
 3. **下载解压** — 优先级：同名 md → `full.md` → 第一个，统一改名为 `{stem}.md`，更新 `md_path` / `md_content`。
 
 #### 3. node_md_img — 图片处理
+
+> **职责**：扫描 Markdown 里的图片引用，用视觉模型生成摘要并上传 MinIO。
 
 1. 校验 `md_path` / `md_content`，定位 md 同目录的 `images/`（不存在则跳过，纯文本资料不会报错）；
 2. 扫描图片文件并定位其在 md 中的引用，截取前后各 100 字符作为上下文；
@@ -619,11 +637,15 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 4. node_mp3_to_text — MP3 音频转文本
 
+> **职责**：本地 SenseVoice 把音频转成带标点纯文本，写入 md_content（直连切分，跳过图片处理）。
+
 1. **路径校验** — 校验 `mp3_path` 存在、`local_dir`（为空回退 `output/`，不存在则创建）；
 2. **语音转写** — 调用 `app/lm/asr_utils.transcribe_audio`（本地 SenseVoice + FSMN-VAD 长音频切分），得到带标点纯文本；
 3. **落盘与写状态** — 转写文本写入 `md_content`、落盘为 `{file_title}.md` 并更新 `md_path`，随后直接进入 `node_document_split`（音频无图片，跳过 `node_md_img`，后续流程完全复用）。
 
 #### 5. node_document_split — 文档切分
+
+> **职责**：按 Markdown 标题 + 递归把 md_content 切成带元数据的 chunks。
 
 1. **清洗内容** — 取 `md_content` / `file_title`，统一换行符；
 2. **标题初切** — 按 Markdown 标题（1–6 级）切分，跳过代码块；无标题则整篇作为「无主题」；
@@ -631,6 +653,8 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 4. **元数据注入与备份** — 注入 `title` / `parent_title` / `file_title` / `part`，写入 `chunks` 并备份为 `backup.json`。
 
 #### 6. node_item_name_recognition — 书籍主体识别
+
+> **职责**：LLM 识别书名/作者，回填切片元数据并写入 listenbook_item_names 主体库。
 
 1. **取值** — 获取 `file_title`、`chunks`（为空抛异常）；
 2. **构建上下文** — 从第 1 条切片起拼「切片：n，标题：x，内容：y」，累计字符达 2500 即停止；
@@ -640,10 +664,14 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 7. node_bge_embedding — 向量生成
 
+> **职责**：BGE-M3 为每个切片生成稠密 + 稀疏向量。
+
 1. 校验 `chunks` 非空；
 2. 每批 5 条，参与向量化的文本为「书名：{item_name}，内容：{content}」，BGE-M3 生成稠密 + 稀疏向量并回填 `dense_vector` / `sparse_vector`；某批失败则该批原样保留，不阻断流程。
 
 #### 8. node_import_milvus — 导入向量库
+
+> **职责**：把带向量的切片写入 listenbook_chunks 集合并回填 chunk_id。
 
 1. 校验 `chunks` 非空；
 2. 不存在则创建 `listenbook_chunks`（16 个字段，见[知识库内容模型](#知识库内容模型)；稠密 HNSW-COSINE、稀疏 SPARSE_INVERTED_INDEX-IP）；
@@ -675,11 +703,15 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 **入口前置 · node_query_intent — 输入意图识别**
 
+> **职责**：识别输入是否为音频文件路径，是则转写为文本并覆盖 original_query。
+
 1. 判断 `original_query` 是否为音频文件路径（后缀命中 `.mp3/.wav/.m4a/.flac/.aac/.ogg` 且文件确实存在）；
 2. 音频输入 → 调用 `app/lm/asr_utils.transcribe_audio` 转写为文本，覆盖 `original_query`；
 3. 文本输入 → 直接透传。随后进入 `node_item_name_confirm`，后续检索流程完全复用。
 
 #### 1. node_item_name_confirm — 书籍主体确认
+
+> **职责**：读历史 → LLM 提取书名/作者并改写问题 → 向量对齐 → 评分分级 → 写历史。
 
 1. 按 `session_id` 从 MongoDB 读取近期对话，写入 `state["history"]`；同时把当轮用户消息写入历史并拿到 `message_id`；
 2. 加载 `rewritten_query_and_itemnames` 提示词，结合历史做指代消解，LLM 返回 `item_names` 与 `rewritten_query`；
@@ -694,6 +726,8 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 2. node_search_embedding — 向量检索
 
+> **职责**：BGE-M3 混合检索 + item_name 过滤，返回 Top-5 切片。
+
 1. 校验 `item_names`（为空返回空结果）；
 2. 用 BGE-M3 将 `rewritten_query` 转成稠密 + 稀疏向量；
 3. 拼 `item_name in ['...']` 过滤表达式；
@@ -701,11 +735,15 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 3. node_search_embedding_hyde — HyDE 检索
 
+> **职责**：LLM 生成假设文档，再组合检索提升模糊问题召回。
+
 1. 用 `hyde_prompt` 让 LLM 生成一段 ≤300 字的"理想答案范文"；
 2. 把"改写问题 + 假设文档"拼接后向量化，叠加主体过滤，在 `listenbook_chunks` 做混合检索（req_limit=10、limit=5）；
 3. `rewritten_query` 为空时退回 `original_query`；生成或检索异常返回空结果。
 
 #### 4. node_web_search_mcp — 书籍查询
+
+> **职责**：MCP 调用百炼书旗查库外书籍，失败自动降级。
 
 1. **构造查询词** — 优先取 `item_names` 的书名部分；**多本书时拆开分别查询**
    （实测把「斗破苍穹、斗罗大陆」当一个查询词丢给工具，只会召回第一本，第二本拿不到、也带不出它的封面）；
@@ -723,17 +761,23 @@ uv run python test/06_asr_test.py          # 语音识别（需先准备音频�
 
 #### 5. node_rrf — RRF 融合
 
+> **职责**：向量 + HyDE 两路倒数排名融合（k=60），截断 Top-10。
+
 1. 把 Milvus 的 Hit 对象 / 字典统一成实体字典，并补齐 `chunk_id` 与 `score`；
 2. **仅融合「向量检索」与「HyDE 检索」两路**，按 `score(d) = Σ weight_i / (k + rank_i(d))` 累加（两路权重 1.0、`k=60`），同一 `chunk_id` 多路命中则分数累加；
 3. 降序截断保留 Top-10，写入 `rrf_chunks`。
 
 #### 6. node_rerank — 重排序
 
+> **职责**：本地 BGE-Reranker 精排 + 断崖检测动态截断。
+
 1. **多源合并** — 本地切片（携带书名 / 作者 / 内容类型 / 来源文件）与网络搜索结果统一成同一结构（`text` / `title` / `url` / `source` + 书籍元数据）；
 2. **精排打分** — 本地 BGE-Reranker-large（Cross-Encoder）对「问题 + 文档」逐对打分并降序；模型不可用时降级为全 0 分，不阻断流程；
 3. **动态 TopK 截断** — 从 `RERANK_MIN_TOPK`(1) 起逐对比相邻分数，绝对差 ≥ `RERANK_GAP_ABS`(2) 或相对差 ≥ `RERANK_GAP_RATIO`(0.5) 判定断崖并截断；上限 `RERANK_MAX_TOPK`(10)。
 
 #### 7. node_answer_output — 答案生成
+
+> **职责**：组装 Prompt → 流式生成 → 图片白名单清洗 → 写历史 → SSE 推送。
 
 1. **闲聊分流** — 若 `state["is_chitchat"]` 为真（`node_item_name_confirm` 判定本轮与书籍无关，如「你好」），用 `prompts/chitchat.prompt` 生成闲聊回答，不走检索、不引用检索内容；否则检查已有答案：若 `state["answer"]` 已有值（本地库与书籍查询 MCP 都无内容时的兜底话术），直接透传输出；
 2. **构建 Prompt** — 参考切片按 `[序号] [来源] [书名=..] [作者=..] [内容类型=..] [来源文件=..] [chunk_id=..] [score=..] [title=..]` + 正文组织；上下文累计超 `MAX_CONTEXT_CHARS`（12000）即截断；
